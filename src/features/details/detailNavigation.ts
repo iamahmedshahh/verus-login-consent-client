@@ -25,6 +25,7 @@ import {generateAppEncryptionResponse, prepareAppEncryptionDetail} from './appEn
 import {generateAuthenticationResponse, prepareAuthenticationDetail} from './authentication';
 import {generateDataPacketResponse, prepareDataPacketDetail} from './dataPacket';
 import {generateIdentityUpdateResponse, prepareIdentityUpdateDetail} from './identityUpdate';
+import {prepareProvisionIdentityDetail} from './provisionIdentity';
 import {DetailMapEntry, DetailPrepFunction, DetailResponse, DetailResponseGenerator} from './types';
 import {generateUserDataResponse, prepareUserDataDetail} from './userData';
 
@@ -77,7 +78,7 @@ const DETAIL_MAP: Record<string, DetailMapEntry> = {
   },
   [PROVISION_IDENTITY_DETAILS_VDXF_ORDINAL.toNumber()]: {
     type: 'detour',
-    prepFunction: noOpPrepFunction,
+    prepFunction: prepareProvisionIdentityDetail,
     screens: [PROVISIONING_FORM, PROVISIONING_CONFIRM, PROVISIONING_RESULT],
     responseGenerator: noOpResponseGenerator,
   },
