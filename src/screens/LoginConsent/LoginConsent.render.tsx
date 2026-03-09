@@ -25,9 +25,9 @@ import ExternalAction from './ExternalAction/ExternalAction';
 import IdentityUpdateContentMultiMap from './IdentityUpdate/ContentMultiMap';
 import IdentityUpdateCore from './IdentityUpdate/Core';
 import Login from './Login/Login';
-import ProvisionIdentityConfirm from './ProvisionIdentity/ProvisionIdentityConfirm/ProvisionIdentityConfirm';
-import ProvisionIdentityForm from './ProvisionIdentity/ProvisionIdentityForm/ProvisionIdentityForm';
-import ProvisionIdentityResult from './ProvisionIdentity/ProvisionIdentityResult/ProvisionIdentityResult';
+import ProvisionIdentityConfirm from './ProvisionIdentity/ProvisionIdentityConfirm';
+import ProvisionIdentityForm from './ProvisionIdentity/ProvisionIdentityForm';
+import ProvisionIdentityResult from './ProvisionIdentity/ProvisionIdentityResult';
 import Redirect from './Redirect/Redirect';
 import {LoginConsent} from './LoginConsent';
 

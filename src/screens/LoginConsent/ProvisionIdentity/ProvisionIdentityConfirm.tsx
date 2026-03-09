@@ -1,9 +1,9 @@
 import React, {useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
-import {PROVISIONING_FORM, PROVISIONING_RESULT} from '../../../../utils/constants';
-import {setNavigationPath} from '../../../../redux/reducers/navigation/navigationSlice';
+import {PROVISIONING_FORM, PROVISIONING_RESULT} from '../../../utils/constants';
+import {setNavigationPath} from '../../../redux/reducers/navigation/navigationSlice';
 import Button from '@mui/material/Button';
-import {VerusIdLogo} from '../../../../images';
+import {VerusIdLogo} from '../../../images';
 import Card from '@mui/material/Card';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -21,18 +21,18 @@ import {
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_PENDINGAPPROVAL,
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_COMPLETE,
 } from 'verus-typescript-primitives';
-import {getIdentity} from '../../../../rpc/calls/getIdentity';
-import {getVdxfId} from '../../../../rpc/calls/getVdxfId';
-import {signIdProvisioningRequest} from '../../../../rpc/calls/signIdProvisioningRequest';
+import {getIdentity} from '../../../rpc/calls/getIdentity';
+import {getVdxfId} from '../../../rpc/calls/getVdxfId';
+import {signIdProvisioningRequest} from '../../../rpc/calls/signIdProvisioningRequest';
 import axios from 'axios';
-import {SnackbarAlert} from '../../../../components/SnackbarAlert';
-import {verifyIdProvisioningResponse} from '../../../../rpc/calls/verifyIdProvisioningResponse';
+import {SnackbarAlert} from '../../../components/SnackbarAlert';
+import {verifyIdProvisioningResponse} from '../../../rpc/calls/verifyIdProvisioningResponse';
 import {
   setProvisioningName,
   setProvisioningResponse,
   setRequestedFqn,
   setRequestedId,
-} from '../../../../redux/reducers/provision/provision.actions';
+} from '../../../redux/reducers/provision/provision.actions';
 
 const ProvisionIdentityConfirm = () => {
   const dispatch = useDispatch();
