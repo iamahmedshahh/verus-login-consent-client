@@ -22,7 +22,7 @@ import {setNavigationPath} from '#/redux/reducers/navigation/navigationSlice';
 import {
   setIdentityToProvisionField,
   setPrimaryAddress,
-} from '#/redux/reducers/provision/provision.actions';
+} from '#/redux/reducers/provision/provisionSlice';
 import {RootState} from '#/redux/store';
 import {loadIdentities} from '#/rpc/calls/identities';
 import {verifyIdProvisioningResponse} from '#/rpc/calls/verifyIdProvisioningResponse';

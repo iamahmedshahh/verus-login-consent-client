@@ -31,7 +31,7 @@ import {
   setIdentityToProvisionField,
   setPrimaryAddress,
   setProvisioningInfo,
-} from '#/redux/reducers/provision/provision.actions';
+} from '#/redux/reducers/provision/provisionSlice';
 import {RootState} from '#/redux/store';
 import {getAddresses} from '#/rpc/calls/getAddresses';
 import {getIdentity} from '#/rpc/calls/getIdentity';

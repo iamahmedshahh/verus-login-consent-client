@@ -31,26 +31,13 @@ import {
   setProvisioningResponse,
   setRequestedFqn,
   setRequestedId,
-} from '#/redux/reducers/provision/provision.actions';
+} from '#/redux/reducers/provision/provisionSlice';
 import {RootState} from '#/redux/store';
 import {getIdentity} from '#/rpc/calls/getIdentity';
 import {getVdxfId} from '#/rpc/calls/getVdxfId';
 import {signIdProvisioningRequest} from '#/rpc/calls/signIdProvisioningRequest';
 import {verifyIdProvisioningResponse} from '#/rpc/calls/verifyIdProvisioningResponse';
 import {PROVISIONING_FORM, PROVISIONING_RESULT} from '#/utils/constants';
-
-interface ProvisioningInfoItem {
-  vdxfkey: string;
-  data: string;
-}
-
-interface ProvisioningInfo {
-  provAddress: ProvisioningInfoItem | null;
-  provSystemId: ProvisioningInfoItem | null;
-  provFqn: ProvisioningInfoItem | null;
-  provParent: ProvisioningInfoItem | null;
-  friendlyNameMap: Record<string, string>;
-}
 
 interface SubmissionError {
   showError: boolean;
@@ -107,9 +94,7 @@ const ProvisionIdentityConfirm: React.FC = () => {
   const dispatch = useAppDispatch();
   const deeplinkData = useSelector((state: RootState) => state.deeplink.data);
   const chainId = useSelector((state: RootState) => state.chainMetadata.chainId);
-  const provisioningInfo = useSelector(
-    (state: RootState) => state.provision.provisioningInfo
-  ) as ProvisioningInfo;
+  const provisioningInfo = useSelector((state: RootState) => state.provision.provisioningInfo);
   const identityToProvisionField = useSelector(
     (state: RootState) => state.provision.identityToProvisionField
   );
@@ -156,7 +141,7 @@ const ProvisionIdentityConfirm: React.FC = () => {
       requestedId: string
     ) => {
       setLoading(false);
-      dispatch(setProvisioningResponse(response));
+      dispatch(setProvisioningResponse(response as LoginConsentProvisioningResponseInterface));
       dispatch(setRequestedFqn(requestedFqn));
       dispatch(setProvisioningName(provName));
       dispatch(setRequestedId(requestedId));
