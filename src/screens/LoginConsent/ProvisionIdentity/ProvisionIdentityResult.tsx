@@ -1,44 +1,55 @@
 import React, {useState} from 'react';
-import {useDispatch, useSelector} from 'react-redux';
-import {PROVISIONING_FORM, SELECT_LOGIN_ID} from '../../../../utils/constants';
-import {setNavigationPath} from '../../../../redux/reducers/navigation/navigationSlice';
-import {setIdentities} from '../../../../redux/reducers/identity/identity.actions';
-import {VerusIdLogo} from '../../../../images';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+import {useSelector} from 'react-redux';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import {useInterval} from '../../../../utils/interval';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 import axios from 'axios';
 import {
   LOGIN_CONSENT_PROVISIONING_ERROR_KEY_CREATION_FAILED,
   LOGIN_CONSENT_PROVISIONING_ERROR_KEY_NAMETAKEN,
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_FAILED,
+  LoginConsentProvisioningDecision,
   LoginConsentProvisioningResponse,
 } from 'verus-typescript-primitives';
-import {loadIdentities} from '../../../../rpc/calls/identities';
-import {verifyIdProvisioningResponse} from '../../../../rpc/calls/verifyIdProvisioningResponse';
+
+import PageLayout from '#/components/PageLayout';
+import {useAppDispatch} from '#/redux/hooks';
+import {setIdentities} from '#/redux/reducers/identity/identity.actions';
+import {setNavigationPath} from '#/redux/reducers/navigation/navigationSlice';
 import {
   setIdentityToProvisionField,
   setPrimaryAddress,
-} from '../../../../redux/reducers/provision/provision.actions';
+} from '#/redux/reducers/provision/provision.actions';
+import {RootState} from '#/redux/store';
+import {loadIdentities} from '#/rpc/calls/identities';
+import {verifyIdProvisioningResponse} from '#/rpc/calls/verifyIdProvisioningResponse';
+import {PROVISIONING_FORM, SELECT_LOGIN_ID} from '#/utils/constants';
+import {useInterval} from '#/utils/interval';
+
+interface ProvisioningError {
+  error: boolean;
+  description: string;
+  allowRetry: boolean;
+}
+
+type SetCheckForId = React.Dispatch<React.SetStateAction<boolean>>;
+type SetProvisioningError = React.Dispatch<React.SetStateAction<ProvisioningError>>;
+type SetCheckForProvisioningStatus = React.Dispatch<React.SetStateAction<boolean>>;
 
 export const checkForProvisioningStatus = async (
-  infoUri,
-  request,
-  setCheckForId,
-  setProvisioningError,
-  setCheckForProvisioningStatus
-) => {
-  const failed = (description, allowRetry) => {
+  infoUri: string | undefined,
+  request: unknown,
+  setCheckForId: SetCheckForId,
+  setProvisioningError: SetProvisioningError,
+  setCheckForProvisioningStatus: SetCheckForProvisioningStatus
+): Promise<void> => {
+  const failed = (description: string, allowRetry: boolean) => {
     setCheckForId(false);
     setCheckForProvisioningStatus(false);
-    setProvisioningError({
-      error: true,
-      description: description,
-      allowRetry: allowRetry,
-    });
+    setProvisioningError({error: true, description, allowRetry});
   };
 
   if (!infoUri) {
@@ -52,50 +63,48 @@ export const checkForProvisioningStatus = async (
     const verificationCheck = await verifyIdProvisioningResponse(provisioningResponse);
     const verified = verificationCheck.verified;
 
-    if (provisioningResponse.signing_id !== request.signing_id || !verified) {
+    if (
+      provisioningResponse.signing_id !== (request as {signing_id: string}).signing_id ||
+      !verified
+    ) {
       throw new Error('Failed to verify response from the provisioning service.');
     }
 
-    if (
-      provisioningResponse.decision.result.state ===
-      LOGIN_CONSENT_PROVISIONING_RESULT_STATE_FAILED.vdxfid
-    ) {
-      if (
-        provisioningResponse.decision.result.error_key ===
-        LOGIN_CONSENT_PROVISIONING_ERROR_KEY_NAMETAKEN.vdxfid
-      ) {
+    const decision = provisioningResponse.decision as LoginConsentProvisioningDecision;
+    const result = decision.result;
+
+    if (result?.state === LOGIN_CONSENT_PROVISIONING_RESULT_STATE_FAILED.vdxfid) {
+      if (result.error_key === LOGIN_CONSENT_PROVISIONING_ERROR_KEY_NAMETAKEN.vdxfid) {
         failed('Name is already taken.', true);
-      } else if (
-        provisioningResponse.decision.result.error_key ===
-        LOGIN_CONSENT_PROVISIONING_ERROR_KEY_CREATION_FAILED.vdxfid
-      ) {
+      } else if (result.error_key === LOGIN_CONSENT_PROVISIONING_ERROR_KEY_CREATION_FAILED.vdxfid) {
         failed('Unable to register the identity.', true);
       } else {
         failed('Provisioning failed for unknown reasons.', true);
       }
     }
-  } catch (e) {
-    if (e.message === 'Network Error') {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message === 'Network Error') {
       failed('Failed to get a response from the provisioning service.', false);
     } else {
-      failed(e.message, false);
+      failed(message, false);
     }
   }
 };
 
 export const checkForNewId = async (
-  dispatch,
-  chainId,
-  requestedId,
-  setCheckForId,
-  setCheckForProvisioningStatus
-) => {
+  dispatch: ReturnType<typeof useAppDispatch>,
+  chainId: string,
+  requestedId: string,
+  setCheckForId: SetCheckForId,
+  setCheckForProvisioningStatus: SetCheckForProvisioningStatus
+): Promise<void> => {
   try {
     const identities = await loadIdentities(chainId);
     dispatch(setIdentities(identities));
-    const found = identities.find(id => {
-      return id.identity.identityaddress === requestedId;
-    });
+    const found = identities.find(
+      (id: {identity: {identityaddress: string}}) => id.identity.identityaddress === requestedId
+    );
 
     if (found) {
       setCheckForId(false);
@@ -106,27 +115,29 @@ export const checkForNewId = async (
   }
 };
 
-const ProvisionIdentityResult = () => {
-  const dispatch = useDispatch();
+const ProvisionIdentityResult: React.FC = () => {
+  const dispatch = useAppDispatch();
 
-  const deeplinkData = useSelector(state => state.deeplink.data);
-  const chainId = useSelector(state => state.chainMetadata.chainId);
-  const provisioningResponse = useSelector(state => state.provision.provisioningResponse);
-  const requestedFqn = useSelector(state => state.provision.requestedFqn);
-  const requestedId = useSelector(state => state.provision.requestedId);
-  const provisioningName = useSelector(state => state.provision.provisioningName);
-  const provisioningCheckDelay = 600000; // Ten minute delay.
-  const idCheckDelay = 5000; // 5 second delay.
+  const deeplinkData = useSelector((state: RootState) => state.deeplink.data);
+  const chainId = useSelector((state: RootState) => state.chainMetadata.chainId);
+  const provisioningResponse = useSelector(
+    (state: RootState) => state.provision.provisioningResponse
+  );
+  const requestedFqn = useSelector((state: RootState) => state.provision.requestedFqn);
+  const requestedId = useSelector((state: RootState) => state.provision.requestedId);
+  const provisioningName = useSelector((state: RootState) => state.provision.provisioningName);
+
+  const provisioningCheckDelay = 600000;
+  const idCheckDelay = 5000;
 
   let formattedName = '';
   const lastDotIndex = requestedFqn.lastIndexOf('.');
-  if (lastDotIndex === -1)
-    formattedName = requestedFqn; // return the original string if there's no dot
+  if (lastDotIndex === -1) formattedName = requestedFqn;
   else formattedName = requestedFqn.substring(0, lastDotIndex);
 
   const [checkForId, setCheckForId] = useState(true);
   const [checkProvisioningStatus, setCheckForProvisioningStatus] = useState(true);
-  const [provisioningError, setProvisioningError] = useState({
+  const [provisioningError, setProvisioningError] = useState<ProvisioningError>({
     error: false,
     description: '',
     allowRetry: false,
@@ -135,7 +146,7 @@ const ProvisionIdentityResult = () => {
   useInterval(
     async () =>
       await checkForProvisioningStatus(
-        provisioningResponse.decision.result.info_uri,
+        provisioningResponse?.decision?.result?.info_uri,
         deeplinkData,
         setCheckForId,
         setProvisioningError,
@@ -156,144 +167,88 @@ const ProvisionIdentityResult = () => {
     checkForId ? idCheckDelay : null
   );
 
-  const finishSend = () => {
-    // Clear the chosen name and address after leaving.
+  const finishSend = (): void => {
     dispatch(setIdentityToProvisionField(''));
     dispatch(setPrimaryAddress(''));
     dispatch(setNavigationPath(SELECT_LOGIN_ID));
   };
 
-  const retry = () => {
-    // Clear the chosen name before choosing a new one.
+  const retry = (): void => {
     dispatch(setIdentityToProvisionField(''));
     dispatch(setNavigationPath(PROVISIONING_FORM));
   };
 
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        height: '100%',
-      }}
+  const footerButtons = provisioningError.error ? (
+    <>
+      {provisioningError.allowRetry && (
+        <Button
+          variant="text"
+          disabled={checkForId}
+          color="secondary"
+          onClick={retry}
+          sx={{width: 120, mr: 4, p: 1}}
+        >
+          Retry
+        </Button>
+      )}
+      <Button
+        variant="contained"
+        color="secondary"
+        disabled={checkForId}
+        onClick={finishSend}
+        sx={{width: 120, p: 1}}
+      >
+        Exit
+      </Button>
+    </>
+  ) : (
+    <Button
+      variant="contained"
+      color="success"
+      disabled={checkForId}
+      onClick={finishSend}
+      sx={{width: 120, p: 1}}
     >
-      <div
-        style={{
-          height: '100%',
+      Done
+    </Button>
+  );
+
+  return (
+    <PageLayout
+      title={`${formattedName}@ is being provisioned by ${provisioningName}@`}
+      contentStyle={{
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      footerContent={footerButtons}
+    >
+      <Typography color="text.secondary" sx={{textAlign: 'center', mb: 2}}>
+        Estimated waiting time is 5 minutes
+      </Typography>
+
+      <Box
+        sx={{
           display: 'flex',
-          padding: 32,
-          flexDirection: 'column',
+          flex: 1,
           alignItems: 'center',
+          flexDirection: 'column',
+          justifyContent: 'center',
         }}
       >
-        <img src={VerusIdLogo} width={'55%'} height={'10%'} />
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'flex-start',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexDirection: 'column',
-              padding: 8,
-            }}
-          >
-            <Box>{`${formattedName}@ is being provisioned by ${provisioningName}@`}</Box>
-            <Box>{`Estimated waiting time is 5 minutes`}</Box>
-          </div>
-        </div>
-
-        <Box
-          sx={{
-            display: 'flex',
-            flex: 1,
-            alignItems: 'center',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          {checkForId ? (
-            <CircularProgress />
-          ) : provisioningError.error ? (
+        {checkForId ? (
+          <CircularProgress />
+        ) : provisioningError.error ? (
+          <>
             <ErrorIcon color="secondary" sx={{fontSize: 72}} />
-          ) : (
-            <CheckCircleIcon color="success" sx={{fontSize: 72}} />
-          )}
-          {!checkForId && provisioningError.error ? provisioningError.description : ``}
-        </Box>
-
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            {provisioningError.error ? (
-              <Box>
-                {provisioningError.allowRetry && (
-                  <Button
-                    variant="text"
-                    disabled={checkForId}
-                    color="secondary"
-                    onClick={() => retry()}
-                    style={{
-                      width: 120,
-                      marginRight: 32,
-                      padding: 8,
-                    }}
-                  >
-                    {'Retry'}
-                  </Button>
-                )}
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  disabled={checkForId}
-                  onClick={() => finishSend()}
-                  style={{
-                    width: 120,
-                    padding: 8,
-                  }}
-                >
-                  {'Exit'}
-                </Button>
-              </Box>
-            ) : (
-              <Button
-                variant="contained"
-                color={'success'}
-                disabled={checkForId}
-                onClick={() => finishSend()}
-                style={{
-                  width: 120,
-                  padding: 8,
-                }}
-              >
-                {'Done'}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+            <Typography color="error" sx={{mt: 2, textAlign: 'center'}}>
+              {provisioningError.description}
+            </Typography>
+          </>
+        ) : (
+          <CheckCircleIcon color="success" sx={{fontSize: 72}} />
+        )}
+      </Box>
+    </PageLayout>
   );
 };
 

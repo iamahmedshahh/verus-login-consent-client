@@ -1,170 +1,174 @@
 import React, {useEffect, useState} from 'react';
-import {useDispatch, useSelector} from 'react-redux';
-import {PROVISIONING_CONFIRM, SELECT_LOGIN_ID} from '../../../../utils/constants';
-import {setNavigationPath} from '../../../../redux/reducers/navigation/navigationSlice';
-import {
-  ID_ADDRESS_VDXF_KEY,
-  ID_SYSTEMID_VDXF_KEY,
-  ID_FULLYQUALIFIEDNAME_VDXF_KEY,
-  ID_PARENT_VDXF_KEY,
-  LOGIN_CONSENT_ID_PROVISIONING_WEBHOOK_VDXF_KEY,
-  fromBase58Check,
-} from 'verus-typescript-primitives';
+import {useSelector} from 'react-redux';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
-import Select from '@mui/material/Select';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import MenuItem from '@mui/material/MenuItem';
 import InputLabel from '@mui/material/InputLabel';
-import {VerusIdLogo} from '../../../../images';
-import {getIdentity} from '../../../../rpc/calls/getIdentity';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
+import {
+  fromBase58Check,
+  GenericRequest,
+  ID_PARENT_VDXF_KEY,
+  LoginConsentRequest,
+  ProvisionIdentityDetails,
+} from 'verus-typescript-primitives';
+
+import PageLayout from '#/components/PageLayout';
+import {
+  extractProvisionIdentityDataV1,
+  extractProvisionIdentityDataV2,
+  ProvisioningInfoItem,
+} from '#/features/login/provisionIdentityDataExtractors';
+import {useAppDispatch} from '#/redux/hooks';
+import {
+  navigateBackGenericRequest,
+  setNavigationPath,
+} from '#/redux/reducers/navigation/navigationSlice';
 import {
   setIdentityToProvisionField,
   setPrimaryAddress,
   setProvisioningInfo,
-} from '../../../../redux/reducers/provision/provision.actions';
-import {getAddresses} from '../../../../rpc/calls/getAddresses';
+} from '#/redux/reducers/provision/provision.actions';
+import {RootState} from '#/redux/store';
+import {getAddresses} from '#/rpc/calls/getAddresses';
+import {getIdentity} from '#/rpc/calls/getIdentity';
+import {PROVISIONING_CONFIRM, SELECT_LOGIN_ID} from '#/utils/constants';
 
-const ProvisionIdentityForm = () => {
-  const dispatch = useDispatch();
-  const deeplinkData = useSelector(state => state.deeplink.data);
-  const chainId = useSelector(state => state.chainMetadata.chainId);
-  const chainName = useSelector(state => state.chainMetadata.chainName);
-  const identityToProvisionField = useSelector(state => state.provision.identityToProvisionField);
-  const initialPrimaryAddress = useSelector(state => state.provision.primaryAddress);
+interface FormError {
+  error: boolean;
+  description: string;
+}
 
-  const hasProvisioningInfo =
-    deeplinkData != null && deeplinkData.challenge.provisioning_info != null;
+type FriendlyNameMap = Record<string, string>;
 
-  const [friendlyNameMap, setFriendlyNameMap] = useState({});
+const ProvisionIdentityForm: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const deeplinkData = useSelector((state: RootState) => state.deeplink.data);
+  const chainId = useSelector((state: RootState) => state.chainMetadata.chainId);
+  const chainName = useSelector((state: RootState) => state.chainMetadata.chainName);
+  const identityToProvisionField = useSelector(
+    (state: RootState) => state.provision.identityToProvisionField
+  );
+  const initialPrimaryAddress = useSelector((state: RootState) => state.provision.primaryAddress);
+  const currentDetailIndex = useSelector((state: RootState) => state.navigation.currentDetailIndex);
 
-  const [provAddress, setProvAddress] = useState(null);
-  const [provSystemId, setProvSystemId] = useState(null);
-  const [provFqn, setProvFqn] = useState(null);
-  const [provParent, setProvParent] = useState(null);
-  const [provWebhook, setProvWebhook] = useState(null);
-  const [assignedIdentity, setAssignedIdentity] = useState(null);
+  const isGenericRequest = deeplinkData instanceof GenericRequest;
+
+  const loginRequest = deeplinkData as LoginConsentRequest;
+
+  const hasProvisioningInfo = isGenericRequest
+    ? deeplinkData.details[currentDetailIndex].data instanceof ProvisionIdentityDetails
+    : loginRequest != null && loginRequest.challenge?.provisioning_info != null;
+
+  const [friendlyNameMap, setFriendlyNameMap] = useState<FriendlyNameMap>({});
+  const [provAddress, setProvAddress] = useState<ProvisioningInfoItem | null>(null);
+  const [provSystemId, setProvSystemId] = useState<ProvisioningInfoItem | null>(null);
+  const [provFqn, setProvFqn] = useState<ProvisioningInfoItem | null>(null);
+  const [provParent, setProvParent] = useState<ProvisioningInfoItem | null>(null);
+  const [provWebhook, setProvWebhook] = useState<ProvisioningInfoItem | null>(null);
+  const [assignedIdentity, setAssignedIdentity] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [parentName, setParentName] = useState('');
-  const [publicAddresses, setPublicAddresses] = useState([]);
+  const [publicAddresses, setPublicAddresses] = useState<string[]>([]);
   const [selectedPublicAddress, setSelectedPublicAddress] = useState('');
 
-  const [formError, setFormError] = useState({
+  const [formError, setFormError] = useState<FormError>({
     error: false,
     description: '',
   });
 
   useEffect(() => {
-    // Extract the provisioning info from the request.
-    const updateProvisioningInfoProcessedData = async () => {
+    const initializeState = async () => {
       if (!hasProvisioningInfo) return;
 
-      const findProvisioningInfo = key =>
-        deeplinkData.challenge.provisioning_info.find(x => x.vdxfkey === key.vdxfid);
-
-      const address = findProvisioningInfo(ID_ADDRESS_VDXF_KEY);
-      const systemId = findProvisioningInfo(ID_SYSTEMID_VDXF_KEY);
-      const fqn = findProvisioningInfo(ID_FULLYQUALIFIEDNAME_VDXF_KEY);
-      const parent = findProvisioningInfo(ID_PARENT_VDXF_KEY);
-      const webhook = findProvisioningInfo(LOGIN_CONSENT_ID_PROVISIONING_WEBHOOK_VDXF_KEY);
-
-      return {address, systemId, fqn, parent, webhook};
-    };
-
-    const initializeState = async () => {
       setLoading(true);
 
-      const {address, systemId, fqn, parent, webhook} = await updateProvisioningInfoProcessedData();
+      const {address, systemId, fqn, parent, webhook} = isGenericRequest
+        ? extractProvisionIdentityDataV2(deeplinkData, currentDetailIndex)
+        : extractProvisionIdentityDataV1(deeplinkData as LoginConsentRequest);
+
+      console.log('Found address: ', address);
 
       // Get the addresses of the wallet so the identity can be provisioned to one of them.
       const addresses = await getAddresses(chainId, true, false);
-      const publicAddressObjects = addresses.public.filter(address => address.tag === 'public');
+      const publicAddressObjects = addresses.public.filter(
+        (addr: {tag: string}) => addr.tag === 'public'
+      );
       // Extract just the r-address from the address object.
-      const publicAddresses = publicAddressObjects.map(addressObj => addressObj.address);
-      setPublicAddresses(publicAddresses);
+      const resolvedAddresses: string[] = publicAddressObjects.map(
+        (addr: {address: string}) => addr.address
+      );
+      setPublicAddresses(resolvedAddresses);
 
-      if (initialPrimaryAddress && publicAddresses.includes(initialPrimaryAddress)) {
+      if (initialPrimaryAddress && resolvedAddresses.includes(initialPrimaryAddress)) {
         setSelectedPublicAddress(initialPrimaryAddress);
       }
 
       const provIdKey = address || fqn || null;
+      const identityKeys: ProvisioningInfoItem[] = provIdKey ? [provIdKey] : [];
+      if (parent) identityKeys.push(parent);
+      if (systemId) identityKeys.push(systemId);
 
-      const identitykeys = provIdKey == null ? [] : [provIdKey];
-      if (parent) identitykeys.push(parent);
-      if (systemId) identitykeys.push(systemId);
+      const newFriendlyNameMap: FriendlyNameMap = {...friendlyNameMap};
 
-      const fetchIdentities = async () => {
-        let newFriendlyNameMap = friendlyNameMap;
-        for (const idKey of identitykeys) {
-          if (idKey != null) {
-            try {
-              const identity = await getIdentity(chainId, idKey.data);
+      for (const idKey of identityKeys) {
+        try {
+          const identity = await getIdentity(chainId, idKey.data);
 
-              if (identity) {
-                // Get only the first part of the name to match the 'name' part of a getidentity call.
-                let name = '';
-                const firstDoxIndex = identity.identity.name.indexOf('.');
-                if (firstDoxIndex === -1) name = identity.identity.name;
-                else name = identity.identity.name.substring(0, firstDoxIndex);
+          if (identity) {
+            // Get only the first part of the name to match the 'name' part of a getidentity call.
+            let name = '';
+            const firstDotIndex = identity.identity.name.indexOf('.');
+            if (firstDotIndex === -1) name = identity.identity.name;
+            else name = identity.identity.name.substring(0, firstDotIndex);
 
-                newFriendlyNameMap[identity.identity.identityaddress] = name;
+            newFriendlyNameMap[identity.identity.identityaddress] = name;
 
-                if (provIdKey != null && idKey.data === provIdKey.data) {
-                  setAssignedIdentity(identity.identity.identityaddress);
-                  dispatch(setIdentityToProvisionField(name));
-                }
-                if (idKey.vdxfkey === ID_PARENT_VDXF_KEY.vdxfid) {
-                  const parentName = `.${identity.fullyqualifiedname}`;
-                  setParentName(parentName);
-                }
-              }
-            } catch {
-              // If the given fully qualified name doesn't exist, then
-              // it is not valid and should be ignored.
-              if (provFqn && idKey.data === provFqn.data) {
-                setProvFqn(null);
-              }
+            if (provIdKey && idKey.data === provIdKey.data) {
+              setAssignedIdentity(identity.identity.identityaddress);
+              dispatch(setIdentityToProvisionField(name));
+            }
+            if (idKey.vdxfkey === ID_PARENT_VDXF_KEY.vdxfid) {
+              setParentName(`.${identity.fullyqualifiedname}`);
             }
           }
+        } catch {
+          // If the given fully qualified name doesn't exist, then
+          // it is not valid and should be ignored.
+          if (fqn && idKey.data === fqn.data) {
+            setProvFqn(null);
+          }
         }
+      }
 
-        setFriendlyNameMap(newFriendlyNameMap);
-        setProvAddress(address);
-        setProvSystemId(systemId);
-        setProvFqn(fqn);
-        setProvParent(parent);
-        setProvWebhook(webhook);
-      };
-
-      fetchIdentities();
+      setFriendlyNameMap(newFriendlyNameMap);
+      setProvAddress(address);
+      setProvSystemId(systemId);
+      setProvFqn(fqn);
+      setProvParent(parent);
+      setProvWebhook(webhook);
       setLoading(false);
     };
 
     initializeState();
   }, []);
 
-  const formHasError = () => {
+  const formHasError = (): boolean => {
     const identity = identityToProvisionField ? identityToProvisionField.trim() : '';
 
     if (!identity) {
-      setFormError({
-        error: true,
-        description: 'Identity is a required field.',
-      });
+      setFormError({error: true, description: 'Identity is a required field.'});
       return true;
     }
 
     try {
       fromBase58Check(identity);
       if (parentName) {
-        setFormError({
-          error: true,
-          description: 'i-Address cannot have a parent name.',
-        });
+        setFormError({error: true, description: 'i-Address cannot have a parent name.'});
         return true;
       }
     } catch {
@@ -178,24 +182,18 @@ const ProvisionIdentityForm = () => {
       }
     }
 
-    // Clear any old errors.
-    setFormError({
-      error: false,
-      description: '',
-    });
-
+    setFormError({error: false, description: ''});
     return false;
   };
 
-  const submitData = async () => {
+  const submitData = async (): Promise<void> => {
     if (formHasError()) return;
 
     setLoading(true);
 
     const identity = identityToProvisionField;
 
-    let formattedId;
-
+    let formattedId: string;
     try {
       fromBase58Check(identity);
       formattedId = identity;
@@ -217,12 +215,11 @@ const ProvisionIdentityForm = () => {
           description: 'Identity name taken, please select a different name.',
         });
       }
-    } catch (e) {
+    } catch (e: unknown) {
       // Check for an invalid identity, otherwise the identity is valid since it does not already exist
       // and it is using valid characters.
-      if (
-        e.message.includes('Identity parameter must be valid friendly name or identity address')
-      ) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (message.includes('Identity parameter must be valid friendly name or identity address')) {
         identityError = true;
         setFormError({
           error: true,
@@ -237,196 +234,106 @@ const ProvisionIdentityForm = () => {
       dispatch(setPrimaryAddress(selectedPublicAddress));
       dispatch(
         setProvisioningInfo({
-          provAddress: provAddress,
-          provSystemId: provSystemId,
-          provFqn: provFqn,
-          provParent: provParent,
-          provWebhook: provWebhook,
-          friendlyNameMap: friendlyNameMap,
+          provAddress,
+          provSystemId,
+          provFqn,
+          provParent,
+          provWebhook,
+          friendlyNameMap,
         })
       );
       dispatch(setNavigationPath(PROVISIONING_CONFIRM));
     }
   };
 
-  const cancel = () => {
-    dispatch(setNavigationPath(SELECT_LOGIN_ID));
+  const cancel = (): void => {
+    if (isGenericRequest) {
+      dispatch(navigateBackGenericRequest());
+    } else {
+      dispatch(setNavigationPath(SELECT_LOGIN_ID));
+    }
   };
 
+  const displayValue = assignedIdentity
+    ? friendlyNameMap[assignedIdentity]
+      ? `${friendlyNameMap[assignedIdentity]}`
+      : assignedIdentity
+    : identityToProvisionField;
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        height: '100%',
+    <PageLayout
+      title="Request a VerusID"
+      loading={loading}
+      contentStyle={{
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: 0.5,
       }}
+      footerContent={
+        <>
+          <Button
+            variant="text"
+            disabled={loading}
+            color="secondary"
+            onClick={cancel}
+            sx={{width: 120, mr: 4, p: 1}}
+          >
+            Back
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={loading || selectedPublicAddress === ''}
+            onClick={submitData}
+            sx={{width: 120, p: 1}}
+          >
+            Continue
+          </Button>
+        </>
+      }
     >
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          padding: 32,
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <img src={VerusIdLogo} width={'55%'} height={'10%'} />
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'flex-start',
+      <Box sx={{maxWidth: 560, width: '100%'}}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          error={formError.error}
+          helperText={formError.description}
+          label={parentName ? 'VerusID name' : 'i-Address or VerusID name'}
+          value={displayValue}
+          disabled={assignedIdentity != null || loading}
+          onChange={event => {
+            if (assignedIdentity == null) {
+              dispatch(setIdentityToProvisionField(event.target.value));
+            }
           }}
-        >
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexDirection: 'row',
-              padding: 8,
-            }}
-          >
-            {`Request a VerusID`}
-          </div>
-        </div>
-
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            flex: 1,
-            paddingTop: 2,
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">{parentName ? parentName : ''}</InputAdornment>
+              ),
+            },
           }}
-        >
-          {loading ? (
-            <Box
-              sx={{
-                display: 'flex',
-                flex: 1,
-                alignItems: 'center',
-              }}
+        />
+        <Box sx={{paddingTop: '10vh'}}>
+          <FormControl fullWidth>
+            <InputLabel id="address-select-label">Select a Primary Address</InputLabel>
+            <Select
+              labelId="address-select-label"
+              label="Select a Primary Address"
+              value={selectedPublicAddress}
+              sx={{textAlign: 'start', pt: 0.25}}
+              onChange={e => setSelectedPublicAddress(e.target.value)}
             >
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                maxWidth: 560,
-                width: '100%',
-              }}
-            >
-              <TextField
-                fullWidth
-                variant="outlined"
-                error={formError.error}
-                helperText={formError.description}
-                label={parentName ? 'VerusID name' : 'i-Address or VerusID name'}
-                value={
-                  assignedIdentity
-                    ? friendlyNameMap[assignedIdentity]
-                      ? `${friendlyNameMap[assignedIdentity]}`
-                      : assignedIdentity
-                    : identityToProvisionField
-                }
-                mode="outlined"
-                disabled={assignedIdentity != null || loading}
-                onChange={event => {
-                  const text = event.target.value;
-                  if (assignedIdentity == null) {
-                    dispatch(setIdentityToProvisionField(text));
-                  }
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">{parentName ? parentName : ``}</InputAdornment>
-                  ),
-                }}
-              ></TextField>
-              <Box
-                sx={{
-                  paddingTop: '10vh',
-                }}
-              >
-                <FormControl fullWidth>
-                  <InputLabel id="address-select-label">Select a Primary Address</InputLabel>
-                  <Select
-                    labelId="address-select-label"
-                    label="Select a Primary Address"
-                    value={selectedPublicAddress}
-                    style={{
-                      textAlign: 'start',
-                      paddingTop: 2,
-                    }}
-                    onChange={e => {
-                      return setSelectedPublicAddress(e.target.value);
-                    }}
-                  >
-                    {publicAddresses.map(address => {
-                      return (
-                        <MenuItem key={address} value={address}>
-                          {address}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                </FormControl>
-              </Box>
-            </Box>
-          )}
-        </div>
-
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Button
-              variant="text"
-              disabled={loading}
-              color="secondary"
-              onClick={() => cancel()}
-              style={{
-                width: 120,
-                marginRight: 32,
-                padding: 8,
-              }}
-            >
-              {'Back'}
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={loading || selectedPublicAddress === ''}
-              onClick={() => submitData()}
-              style={{
-                width: 120,
-                padding: 8,
-              }}
-            >
-              {'Continue'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+              {publicAddresses.map(address => (
+                <MenuItem key={address} value={address}>
+                  {address}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
+    </PageLayout>
   );
 };
 
