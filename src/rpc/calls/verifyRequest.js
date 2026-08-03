@@ -1,13 +1,14 @@
-import { API_VERIFY_LOGIN_REQUEST, NATIVE, POST } from "../../utils/constants"
-import { getApiData } from "../callCreator"
+import { API_VERIFY_LOGIN_REQUEST, NATIVE, POST } from "../../utils/constants";
+import { getApiData } from "../callCreator";
 
-export const verifyRequest = async (request) => {
+export const verifyLoginRequest = async (chainId, request) => {
   try {
     const res = await getApiData(
       NATIVE,
       API_VERIFY_LOGIN_REQUEST,
       {
-        request,
+        chainTicker: chainId,
+        request: request,
       },
       POST,
       true

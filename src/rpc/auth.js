@@ -1,31 +1,33 @@
-import { addCalledTime } from '../redux/reducers/rpc/rpc.actions';
+import {addCalledTime} from '../redux/reducers/rpc/rpcSlice';
 import store from '../redux/store';
-var blake2b = require('blake2b')
+import {Buffer} from 'buffer';
+// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+var blake2b = require('blake2b');
 
 export const getValidityKey = (data) => {
   // Get current time
   let time = new Date().valueOf();
-  const state = store.getState()
+  const state = store.getState();
 
   // Avoid potential conflicts with current time
-  while (state.rpc.calledTimes.includes(time)) time++
+  while (state.rpc.calledTimes.includes(time)) time++;
 
-  const token = state.rpc.password
+  const token = state.rpc.password;
 
-  var hash = blake2b(64)
+  var hash = blake2b(64);
 
   // Create validity key according to spec
-  hash.update(Buffer.from(time.toString()))
-  hash.update(Buffer.from(token))
-  hash.update(Buffer.from(data))
-  hash.update(Buffer.from(state.rpc.appId))
+  hash.update(Buffer.from(time.toString()));
+  hash.update(Buffer.from(token));
+  hash.update(Buffer.from(data));
+  hash.update(Buffer.from(state.rpc.appId));
 
   // Store time used to avoid conflicts
-  addCalledTime(time)
+  addCalledTime(time);
 
   // Return validity key and time used
   return {
     hash: hash.digest('hex'),
-    time: time.toString()
-  }
-}
+    time: time.toString(),
+  };
+};
