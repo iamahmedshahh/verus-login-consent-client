@@ -10,7 +10,7 @@ import ListItemText from '@mui/material/ListItemText';
 import axios from 'axios';
 import {
   fromBase58Check,
-  LOGIN_CONSENT_ID_PROVISIONING_WEBHOOK_VDXF_KEY,
+  GenericRequest,
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_COMPLETE,
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_FAILED,
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_PENDINGAPPROVAL,
@@ -24,8 +24,16 @@ import {
 
 import PageLayout from '#/components/PageLayout';
 import {SnackbarAlert} from '#/components/SnackbarAlert';
+import {
+  extractGenericProvisioningRequestContext,
+  extractProvisioningRequestContextV1
+} from '#/features/login/provisionIdentityDataExtractors';
 import {useAppDispatch} from '#/redux/hooks';
-import {setNavigationPath} from '#/redux/reducers/navigation/navigationSlice';
+import {
+  navigateBackGenericRequest,
+  navigateGenericRequest,
+  setNavigationPath,
+} from '#/redux/reducers/navigation/navigationSlice';
 import {
   setProvisioningName,
   setProvisioningResponse,
@@ -100,7 +108,9 @@ const ProvisionIdentityConfirm: React.FC = () => {
   );
   const primaryAddress = useSelector((state: RootState) => state.provision.primaryAddress);
 
-  const {provAddress, provSystemId, provFqn, provParent, friendlyNameMap} = provisioningInfo;
+  const {provAddress, provSystemId, provFqn, provParent, provWebhook, friendlyNameMap} =
+    provisioningInfo;
+  const isGenericRequest = deeplinkData instanceof GenericRequest;
 
   let displayIdentity: string;
   if (provFqn) {
@@ -128,7 +138,11 @@ const ProvisionIdentityConfirm: React.FC = () => {
   });
 
   const cancel = (): void => {
-    dispatch(setNavigationPath(PROVISIONING_FORM));
+    if (isGenericRequest) {
+      dispatch(navigateBackGenericRequest());
+    } else {
+      dispatch(setNavigationPath(PROVISIONING_FORM));
+    }
   };
 
   const submitData = async (): Promise<void> => {
@@ -145,7 +159,11 @@ const ProvisionIdentityConfirm: React.FC = () => {
       dispatch(setRequestedFqn(requestedFqn));
       dispatch(setProvisioningName(provName));
       dispatch(setRequestedId(requestedId));
-      dispatch(setNavigationPath(PROVISIONING_RESULT));
+      if (isGenericRequest) {
+        dispatch(navigateGenericRequest());
+      } else {
+        dispatch(setNavigationPath(PROVISIONING_RESULT));
+      }
     };
 
     const onError = (msg: string) => {
@@ -154,18 +172,19 @@ const ProvisionIdentityConfirm: React.FC = () => {
     };
 
     try {
-      const loginRequest = new LoginConsentRequest(deeplinkData as LoginConsentRequest);
+      const {
+        challengeId,
+        signerId,
+        systemId: requestSystemId,
+      } = isGenericRequest
+        ? extractGenericProvisioningRequestContext(deeplinkData)
+        : extractProvisioningRequestContextV1(
+            new LoginConsentRequest(deeplinkData as LoginConsentRequest)
+          );
 
-      const webhookSubject = loginRequest.challenge.provisioning_info
-        ? loginRequest.challenge.provisioning_info.find(
-            (x: {vdxfkey: string}) =>
-              x.vdxfkey === LOGIN_CONSENT_ID_PROVISIONING_WEBHOOK_VDXF_KEY.vdxfid
-          )
-        : null;
+      if (provWebhook == null) throw new Error('No endpoint for ID provisioning');
 
-      if (webhookSubject == null) throw new Error('No endpoint for ID provisioning');
-
-      const webhookUrl = webhookSubject.data;
+      const webhookUrl = provWebhook.data;
       const identity = identityToProvisionField ? identityToProvisionField.trim() : '';
 
       let identityName: string;
@@ -193,7 +212,7 @@ const ProvisionIdentityConfirm: React.FC = () => {
         identityName = identity.split('@')[0];
         parent = provParent ? provParent.data : null;
         systemid = provSystemId ? provSystemId.data : null;
-        const parentObj = await getIdentity(chainId, parent ? parent : loginRequest.system_id);
+        const parentObj = await getIdentity(chainId, parent ? parent : requestSystemId);
         requestedFqn = `${identityName.split('.')[0]}.${parentObj.fullyqualifiedname}`;
         nameId = (await getVdxfId(chainId, requestedFqn)).vdxfid;
       }
@@ -201,7 +220,7 @@ const ProvisionIdentityConfirm: React.FC = () => {
       const provisionRequest = new LoginConsentProvisioningRequest({
         signing_address: primaryAddress,
         challenge: new LoginConsentProvisioningChallenge({
-          challenge_id: loginRequest.challenge.challenge_id,
+          challenge_id: challengeId,
           created_at: Number((Date.now() / 1000).toFixed(0)),
           name: identityName,
           system_id: systemid ?? undefined,
@@ -219,7 +238,7 @@ const ProvisionIdentityConfirm: React.FC = () => {
       const provisionResponse = res.data;
       await handleProvisioningResponse(provisionResponse, nameId, requestedFqn);
 
-      const provName = (await getIdentity(chainId, loginRequest.signing_id)).identity.name;
+      const provName = (await getIdentity(chainId, signerId)).identity.name;
       onSuccess(res.data, requestedFqn, provName, nameId);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);

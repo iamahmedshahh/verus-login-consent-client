@@ -22,6 +22,12 @@ export interface ProvisionIdentityData {
   webhook: ProvisioningInfoItem | null;
 }
 
+export interface ProvisioningRequestContext {
+  challengeId: string;
+  signerId: string;
+  systemId: string;
+}
+
 export function extractProvisionIdentityDataV1(
   loginRequest: LoginConsentRequest
 ): ProvisionIdentityData {
@@ -58,8 +64,6 @@ export function extractProvisionIdentityDataV2(
 
   const provisionIdentityDetails = ordinalWrapper.data;
 
-  console.log('IdentityID', provisionIdentityDetails.identityID);
-
   const address: ProvisioningInfoItem | null = provisionIdentityDetails.identityID
     ? {vdxfkey: ID_ADDRESS_VDXF_KEY.vdxfid, data: provisionIdentityDetails.identityID.toAddress()}
     : null;
@@ -85,5 +89,39 @@ export function extractProvisionIdentityDataV2(
     fqn: null,
     parent,
     webhook,
+  };
+}
+/*
+ * extractProvisioningRequestContextV1 gets the request ID, signer and system from a LoginConsentRequest.
+ */
+export function extractProvisioningRequestContextV1(
+  loginRequest: LoginConsentRequest
+): ProvisioningRequestContext {
+  return {
+    challengeId: loginRequest.challenge.challenge_id,
+    signerId: loginRequest.signing_id,
+    systemId: loginRequest.system_id,
+  };
+}
+
+/*
+ * extractGenericProvisioningRequestContext gets the request ID, signer and system from a GenericRequest.
+ */
+
+export function extractGenericProvisioningRequestContext(
+  request: GenericRequest
+): ProvisioningRequestContext {
+  if (!request.hasRequestID() || !request.requestID) {
+    throw new Error('Provisioning request is missing a request ID.');
+  }
+
+  if (!request.isSigned() || !request.signature) {
+    throw new Error('Provisioning request must be signed.');
+  }
+
+  return {
+    challengeId: request.requestID.toAddress(),
+    signerId: request.signature.identityID.toIAddress(),
+    systemId: request.signature.systemID.toIAddress(),
   };
 }

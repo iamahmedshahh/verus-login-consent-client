@@ -25,6 +25,7 @@ import {
 import {useAppDispatch} from '#/redux/hooks';
 import {
   navigateBackGenericRequest,
+  navigateGenericRequest,
   setNavigationPath,
 } from '#/redux/reducers/navigation/navigationSlice';
 import {
@@ -242,7 +243,11 @@ const ProvisionIdentityForm: React.FC = () => {
           friendlyNameMap,
         })
       );
-      dispatch(setNavigationPath(PROVISIONING_CONFIRM));
+      if (isGenericRequest) {
+        dispatch(navigateGenericRequest());
+      } else {
+        dispatch(setNavigationPath(PROVISIONING_CONFIRM));
+      }
     }
   };
 

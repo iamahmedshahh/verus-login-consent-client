@@ -8,17 +8,27 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import axios from 'axios';
 import {
+  GenericRequest,
   LOGIN_CONSENT_PROVISIONING_ERROR_KEY_CREATION_FAILED,
   LOGIN_CONSENT_PROVISIONING_ERROR_KEY_NAMETAKEN,
   LOGIN_CONSENT_PROVISIONING_RESULT_STATE_FAILED,
   LoginConsentProvisioningDecision,
   LoginConsentProvisioningResponse,
+  LoginConsentRequest,
 } from 'verus-typescript-primitives';
 
 import PageLayout from '#/components/PageLayout';
+import {
+  extractProvisioningRequestContextV1,
+  extractGenericProvisioningRequestContext,
+} from '#/features/login/provisionIdentityDataExtractors';
 import {useAppDispatch} from '#/redux/hooks';
-import {setIdentities} from '#/redux/reducers/identity/identity.actions';
-import {setNavigationPath} from '#/redux/reducers/navigation/navigationSlice';
+import {setIdentities, setActiveVerusId} from '#/redux/reducers/identity/identity.actions';
+import {
+  navigateBackGenericRequest,
+  navigateGenericRequest,
+  setNavigationPath,
+} from '#/redux/reducers/navigation/navigationSlice';
 import {
   setIdentityToProvisionField,
   setPrimaryAddress,
@@ -41,7 +51,7 @@ type SetCheckForProvisioningStatus = React.Dispatch<React.SetStateAction<boolean
 
 export const checkForProvisioningStatus = async (
   infoUri: string | undefined,
-  request: unknown,
+  signerId: string,
   setCheckForId: SetCheckForId,
   setProvisioningError: SetProvisioningError,
   setCheckForProvisioningStatus: SetCheckForProvisioningStatus
@@ -63,10 +73,7 @@ export const checkForProvisioningStatus = async (
     const verificationCheck = await verifyIdProvisioningResponse(provisioningResponse);
     const verified = verificationCheck.verified;
 
-    if (
-      provisioningResponse.signing_id !== (request as {signing_id: string}).signing_id ||
-      !verified
-    ) {
+    if (provisioningResponse.signing_id !== signerId || !verified) {
       throw new Error('Failed to verify response from the provisioning service.');
     }
 
@@ -126,6 +133,11 @@ const ProvisionIdentityResult: React.FC = () => {
   const requestedFqn = useSelector((state: RootState) => state.provision.requestedFqn);
   const requestedId = useSelector((state: RootState) => state.provision.requestedId);
   const provisioningName = useSelector((state: RootState) => state.provision.provisioningName);
+  const identities = useSelector((state: RootState) => state.identity.identities);
+  const isGenericRequest = deeplinkData instanceof GenericRequest;
+  const {signerId} = isGenericRequest
+    ? extractGenericProvisioningRequestContext(deeplinkData)
+    : extractProvisioningRequestContextV1(deeplinkData as LoginConsentRequest);
 
   const provisioningCheckDelay = 600000;
   const idCheckDelay = 5000;
@@ -147,7 +159,7 @@ const ProvisionIdentityResult: React.FC = () => {
     async () =>
       await checkForProvisioningStatus(
         provisioningResponse?.decision?.result?.info_uri,
-        deeplinkData,
+        signerId,
         setCheckForId,
         setProvisioningError,
         setCheckForProvisioningStatus
@@ -168,14 +180,27 @@ const ProvisionIdentityResult: React.FC = () => {
   );
 
   const finishSend = (): void => {
+    const newIdentity = identities.find(
+      (id: {identity: {identityaddress: string}}) => id.identity.identityaddress === requestedId
+    );
+    if (newIdentity) dispatch(setActiveVerusId(newIdentity));
+
     dispatch(setIdentityToProvisionField(''));
     dispatch(setPrimaryAddress(''));
-    dispatch(setNavigationPath(SELECT_LOGIN_ID));
+    if (isGenericRequest) {
+      dispatch(navigateGenericRequest());
+    } else {
+      dispatch(setNavigationPath(SELECT_LOGIN_ID));
+    }
   };
 
   const retry = (): void => {
     dispatch(setIdentityToProvisionField(''));
-    dispatch(setNavigationPath(PROVISIONING_FORM));
+    if (isGenericRequest) {
+      dispatch(navigateBackGenericRequest());
+    } else {
+      dispatch(setNavigationPath(PROVISIONING_FORM));
+    }
   };
 
   const footerButtons = provisioningError.error ? (
