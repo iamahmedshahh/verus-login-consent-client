@@ -6,6 +6,7 @@ import {
   IDENTITY_UPDATE_REQUEST_VDXF_ORDINAL,
   OrdinalVDXFObject,
   PROVISION_IDENTITY_DETAILS_VDXF_ORDINAL,
+  SPENDABLE_KEY_DETAILS_VDXF_ORDINAL,
   USER_DATA_REQUEST_VDXF_ORDINAL,
 } from 'verus-typescript-primitives';
 
@@ -19,6 +20,7 @@ import {
   PROVISIONING_FORM,
   PROVISIONING_RESULT,
   SELECT_LOGIN_ID,
+  SPENDABLE_KEY_UNLOCK,
 } from '#/utils/constants';
 
 import {generateAppEncryptionResponse, prepareAppEncryptionDetail} from './appEncryption';
@@ -26,6 +28,7 @@ import {generateAuthenticationResponse, prepareAuthenticationDetail} from './aut
 import {generateDataPacketResponse, prepareDataPacketDetail} from './dataPacket';
 import {generateIdentityUpdateResponse, prepareIdentityUpdateDetail} from './identityUpdate';
 import {prepareProvisionIdentityDetail} from './provisionIdentity';
+import {prepareSpendableKeyDetail} from './spendableKey';
 import {DetailMapEntry, DetailPrepFunction, DetailResponse, DetailResponseGenerator} from './types';
 import {generateUserDataResponse, prepareUserDataDetail} from './userData';
 
@@ -80,6 +83,12 @@ const DETAIL_MAP: Record<string, DetailMapEntry> = {
     type: 'detour',
     prepFunction: prepareProvisionIdentityDetail,
     screens: [PROVISIONING_FORM, PROVISIONING_CONFIRM, PROVISIONING_RESULT],
+    responseGenerator: noOpResponseGenerator,
+  },
+  [SPENDABLE_KEY_DETAILS_VDXF_ORDINAL.toNumber()]: {
+    type: 'standard',
+    prepFunction: prepareSpendableKeyDetail,
+    screens: [SPENDABLE_KEY_UNLOCK],
     responseGenerator: noOpResponseGenerator,
   },
 };

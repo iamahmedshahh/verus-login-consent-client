@@ -49,6 +49,7 @@ export const API_SIGN_IDENTITY_UPDATE_RESPONSE = 'verusid/identity/sign_identity
 export const API_SIGN_LOGIN_RESPONSE = 'verusid/login/sign_response';
 export const API_VERIFY_GENERIC_REQUEST = 'verusid/generic/verify_generic_request';
 export const API_SIGN_GENERIC_RESPONSE = 'verusid/generic/sign_generic_response';
+export const API_UNLOCK_SPENDABLE_KEY = 'verusid/generic/unlock_spendable_key';
 export const API_VERIFY_ID_PROVISIONING_RESPONSE =
   'verusid/provision/verify_id_provisioning_response';
 export const API_VERIFY_IDENTITY_UPDATE_REQUEST = 'verusid/identity/verify_identity_update_request';
@@ -83,6 +84,7 @@ export const PROVISIONING_CONFIRM = 'PROVISIONING_CONFIRM';
 export const PROVISIONING_RESULT = 'PROVISIONING_RESULT';
 export const CREDENTIALS_REVIEW = 'CREDENTIALS_REVIEW';
 export const DATA_PACKET_REVIEW = 'DATA_PACKET_REVIEW';
+export const SPENDABLE_KEY_UNLOCK = 'SPENDABLE_KEY_UNLOCK';
 
 export const ZC_PARAMS = {
   DOWNLOADING_ZCASH_KEYS: 'Downloading Zcash keys',

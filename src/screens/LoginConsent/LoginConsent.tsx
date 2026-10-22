@@ -22,6 +22,7 @@ import {
   checkAndUpdateChainInfo,
 } from '#/redux/reducers/identity/identity.actions';
 import {
+  navigateGenericRequest,
   setCurrentDetailIndex,
   setExternalAction,
   setNavigationPath,
@@ -158,8 +159,13 @@ export class LoginConsent extends React.Component<LoginConsentProps, LoginConsen
             store.getState
           );
 
-          // CONSENT_TO_SCOPE acts as the review for the generic request.
-          this.props.dispatch(setNavigationPath(CONSENT_TO_SCOPE));
+          if (request.isSigned()) {
+            // CONSENT_TO_SCOPE acts as the review for the generic request.
+            this.props.dispatch(setNavigationPath(CONSENT_TO_SCOPE));
+          } else {
+            // Unsigned requests have no signer to review, so start at their first detail.
+            await (this.props.dispatch as AppDispatch)(navigateGenericRequest());
+          }
         } else {
           throw new Error('GenericRequest contains no details to process');
         }

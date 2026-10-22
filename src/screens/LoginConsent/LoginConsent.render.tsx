@@ -15,6 +15,7 @@ import {
   PROVISIONING_RESULT,
   REDIRECT,
   SELECT_LOGIN_ID,
+  SPENDABLE_KEY_UNLOCK,
 } from '#/utils/constants';
 
 import Consent from './Consent/Consent';
@@ -29,6 +30,7 @@ import ProvisionIdentityConfirm from './ProvisionIdentity/ProvisionIdentityConfi
 import ProvisionIdentityForm from './ProvisionIdentity/ProvisionIdentityForm';
 import ProvisionIdentityResult from './ProvisionIdentity/ProvisionIdentityResult';
 import Redirect from './Redirect/Redirect';
+import SpendableKeyUnlock from './SpendableKey/SpendableKeyUnlock';
 import {LoginConsent} from './LoginConsent';
 
 export const LoginConsentRender = function (
@@ -61,6 +63,7 @@ export const LoginConsentRender = function (
     [PROVISIONING_FORM]: <ProvisionIdentityForm />,
     [PROVISIONING_CONFIRM]: <ProvisionIdentityConfirm />,
     [PROVISIONING_RESULT]: <ProvisionIdentityResult />,
+    [SPENDABLE_KEY_UNLOCK]: <SpendableKeyUnlock completeLoginConsent={completeLoginConsent} />,
     [LOADING_DISPLAY]: <Loading />,
   };
 

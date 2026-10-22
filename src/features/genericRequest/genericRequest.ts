@@ -1,9 +1,20 @@
-import {GenericRequest, VERUSPAY_INVOICE_DETAILS_VDXF_ORDINAL} from 'verus-typescript-primitives';
+import {
+  CREATE_WALLET_BACKUP_DETAILS_VDXF_ORDINAL,
+  GenericRequest,
+  SPENDABLE_KEY_DETAILS_VDXF_ORDINAL,
+  VERUSPAY_INVOICE_DETAILS_VDXF_ORDINAL,
+} from 'verus-typescript-primitives';
 import {VerusIdInterface} from 'verusid-ts-client';
 
 import {RootState} from '#/redux/store';
 import {verifyGenericRequest} from '#/rpc/calls/verifyGenericRequest';
 import {Identity} from '#/types/identity';
+
+const UNSIGNED_DETAIL_TYPES = [
+  VERUSPAY_INVOICE_DETAILS_VDXF_ORDINAL,
+  SPENDABLE_KEY_DETAILS_VDXF_ORDINAL,
+  CREATE_WALLET_BACKUP_DETAILS_VDXF_ORDINAL,
+];
 
 /*
  * Checks the validity of a generic request and throws errors for any issues found.
@@ -26,11 +37,12 @@ export async function checkGenericRequest(
   }
 
   if (!request.isSigned()) {
-    // Only generic requests with VerusPay invoices are allowed to be unsigned.
-    if (
-      request.hasMultiDetails() ||
-      !request.details[0].type.eq(VERUSPAY_INVOICE_DETAILS_VDXF_ORDINAL)
-    ) {
+    // Like Verus Mobile, only VerusPay invoices, spendable keys and wallet backups can be unsigned.
+    const canBeUnsigned = request.details.every(detail =>
+      UNSIGNED_DETAIL_TYPES.some(type => detail.type.eq(type))
+    );
+
+    if (!canBeUnsigned) {
       throw new Error('The request is not signed.');
     }
 
