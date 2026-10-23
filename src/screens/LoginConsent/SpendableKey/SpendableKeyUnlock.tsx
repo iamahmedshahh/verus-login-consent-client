@@ -3,24 +3,34 @@ import {useSelector} from 'react-redux';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import {GenericRequest} from 'verus-typescript-primitives';
 
+import CollapsibleListSection from '#/components/CollapsibleListSection';
+import NestedListItem from '#/components/NestedListItem';
 import PageLayout from '#/components/PageLayout';
 import {extractSpendableKeyData} from '#/features/login/spendableKeyDataExtractors';
 import {useAppDispatch} from '#/redux/hooks';
 import {setError} from '#/redux/reducers/error/error.actions';
 import {RootState} from '#/redux/store';
+import {
+  discoverSpendableKeyClaims,
+  SpendableKeyClaims,
+} from '#/rpc/calls/discoverSpendableKeyClaims';
 import {unlockSpendableKey} from '#/rpc/calls/unlockSpendableKey';
+import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
 
 interface SpendableKeyUnlockProps {
   completeLoginConsent: () => Promise<void>;
 }
+
+const getClaimTitle = ({currencies, identities}: SpendableKeyClaims): string => {
+  if (currencies.length > 0 && identities.length > 0) return 'Claim identity and funds';
+  if (identities.length > 0) return 'Claim identity';
+  return 'Claim funds';
+};
 
 const SpendableKeyUnlock: React.FC<SpendableKeyUnlockProps> = props => {
   const {completeLoginConsent} = props;
@@ -35,26 +45,31 @@ const SpendableKeyUnlock: React.FC<SpendableKeyUnlockProps> = props => {
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [address, setAddress] = useState<string | null>(null);
+  const [claims, setClaims] = useState<SpendableKeyClaims | null>(null);
 
   const unlock = async (): Promise<void> => {
     setLoading(true);
     setPasswordError('');
 
+    let address: string;
+
     try {
-      const unlocked = await unlockSpendableKey(
-        chainId,
-        deeplinkData,
-        currentDetailIndex,
-        password
-      );
-      setAddress(unlocked.address);
+      ({address} = await unlockSpendableKey(chainId, deeplinkData, currentDetailIndex, password));
     } catch (e: unknown) {
       if (requiresPassword) {
         setPasswordError(e instanceof Error ? e.message : String(e));
       } else {
         dispatch(setError(e));
       }
+
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setClaims(await discoverSpendableKeyClaims(chainId, address));
+    } catch (e: unknown) {
+      dispatch(setError(e));
     }
 
     setLoading(false);
@@ -69,11 +84,20 @@ const SpendableKeyUnlock: React.FC<SpendableKeyUnlockProps> = props => {
     await completeLoginConsent();
   };
 
-  const locked = address == null;
-
+  const locked = claims == null;
+  const hasClaims = !locked && (claims.currencies.length > 0 || claims.identities.length > 0);
+  let title = 'Scanning spendable key';
+  if (!locked)
+  {
+    title = getClaimTitle(claims);
+  }
+  else if (requiresPassword)
+  {
+    title = 'Decrypt spendable key';
+  }
   return (
     <PageLayout
-      title={locked && requiresPassword ? 'Decrypt Spendable Key' : 'Claim Gift Card'}
+      title={title}
       loading={loading}
       contentStyle={{
         alignItems: 'center',
@@ -89,7 +113,7 @@ const SpendableKeyUnlock: React.FC<SpendableKeyUnlockProps> = props => {
             onClick={close}
             sx={{width: 120, mr: 4, p: 1}}
           >
-            {locked ? 'Cancel' : 'Close'}
+            {locked || hasClaims ? 'Cancel' : 'Done'}
           </Button>
           {locked && requiresPassword && (
             <Button
@@ -105,7 +129,9 @@ const SpendableKeyUnlock: React.FC<SpendableKeyUnlockProps> = props => {
         </>
       }
     >
-      <Box sx={{maxWidth: 560, width: '100%'}}>
+      <Box
+        sx={{maxWidth: 560, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0}}
+      >
         {locked && requiresPassword && (
           <>
             <Typography sx={{mb: 2}}>
@@ -126,29 +152,52 @@ const SpendableKeyUnlock: React.FC<SpendableKeyUnlockProps> = props => {
           </>
         )}
         {!locked && (
-          <Card square sx={{width: '100%'}}>
-            <List>
-              <ListItem>
-                <ListItemText
-                  primary="Network"
-                  disableTypography
-                  sx={{fontWeight: 'bold', pr: 4}}
-                />
-                <ListItemText primary={chainName} disableTypography sx={{textAlign: 'right'}} />
-              </ListItem>
-              <Divider />
-              <ListItem>
-                <ListItemText
-                  primary="Spendable key address"
-                  disableTypography
-                  sx={{fontWeight: 'bold', pr: 4}}
-                />
-                <ListItemText
-                  primary={address}
-                  disableTypography
-                  sx={{textAlign: 'right', wordBreak: 'break-all'}}
-                />
-              </ListItem>
+          <Typography color="text.secondary" sx={{mb: 2, textAlign: 'center'}}>
+            {hasClaims
+              ? 'Review the transparent funds and VerusIDs found on this key.'
+              : 'No transparent funds or VerusIDs were found.'}
+          </Typography>
+        )}
+        {hasClaims && (
+          <Card
+            square
+            sx={{
+              width: '100%',
+              maxHeight: '100%',
+              minHeight: 0,
+              overflowY: 'auto',
+              scrollbarGutter: 'stable',
+            }}
+          >
+            <List disablePadding sx={{'& > *:last-child': {borderBottom: 'none'}}}>
+              {claims.currencies.length > 0 && (
+                <CollapsibleListSection title="Balances" subtitle={chainName} initiallyExpanded>
+                  {claims.currencies.map(currency => (
+                    <NestedListItem
+                      key={currency.currencyId}
+                      primary={currency.name}
+                      secondary={currency.amount}
+                      variant="standard"
+                    />
+                  ))}
+                </CollapsibleListSection>
+              )}
+              {claims.identities.length > 0 && (
+                <CollapsibleListSection title="VerusIDs" subtitle={chainName} initiallyExpanded>
+                  {claims.identities.map(identity => (
+                    <NestedListItem
+                      key={identity.identityAddress}
+                      primary={identity.unsupportedReason ?? identity.identityAddress}
+                      secondary={
+                        identity.fullyQualifiedName
+                          ? convertFqnToDisplayFormat(identity.fullyQualifiedName)
+                          : identity.identityAddress
+                      }
+                      variant="standard"
+                    />
+                  ))}
+                </CollapsibleListSection>
+              )}
             </List>
           </Card>
         )}

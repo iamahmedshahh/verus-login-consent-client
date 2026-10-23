@@ -50,6 +50,7 @@ export const API_SIGN_LOGIN_RESPONSE = 'verusid/login/sign_response';
 export const API_VERIFY_GENERIC_REQUEST = 'verusid/generic/verify_generic_request';
 export const API_SIGN_GENERIC_RESPONSE = 'verusid/generic/sign_generic_response';
 export const API_UNLOCK_SPENDABLE_KEY = 'verusid/generic/unlock_spendable_key';
+export const API_DISCOVER_SPENDABLE_KEY_CLAIMS = 'verusid/generic/discover_spendable_key_claims';
 export const API_VERIFY_ID_PROVISIONING_RESPONSE =
   'verusid/provision/verify_id_provisioning_response';
 export const API_VERIFY_IDENTITY_UPDATE_REQUEST = 'verusid/identity/verify_identity_update_request';
