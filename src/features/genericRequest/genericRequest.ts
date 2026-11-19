@@ -28,7 +28,11 @@ export function assertRequestNamesReplyAddresses(request: GenericRequest) {
       if (!detail.data.hasEncryptResponseToAddress()) {
         throw new Error('App encryption requests must specify encryptResponseToAddress.');
       }
+      if (detail.data.hasDerivationID()) {
+        throw new Error('App encryption requests with a derivationID are not supported yet.');
+      }
     }
+    
 
     if (
       detail instanceof UserDataRequestOrdinalVDXFObject &&
