@@ -78,7 +78,7 @@ export const extractCredentialsReviewDataV2 = (
 ): CredentialsReviewData => {
   let signerFqn: string;
 
-  if (request.hasAppOrDelegatedID() && appOrDelegatedId) {
+  if (request.hasAppOrDelegatorID() && appOrDelegatedId) {
     signerFqn = convertFqnToDisplayFormat(appOrDelegatedId.fullyqualifiedname);
   } else {
     signerFqn = convertFqnToDisplayFormat(signedBy.fullyqualifiedname);

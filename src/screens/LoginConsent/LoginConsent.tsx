@@ -263,10 +263,10 @@ export class LoginConsent extends React.Component<LoginConsentProps, LoginConsen
         );
 
         let definedKeyIdentity = signingIdentity;
-        if (req.hasAppOrDelegatedID() && req.appOrDelegatedID.toAddress() !== signingId) {
+        if (req.hasAppOrDelegatorID() && req.appOrDelegatorID.toAddress() !== signingId) {
           const appOrDelegatedIdentity = await getIdentityContent(
             chainId,
-            req.appOrDelegatedID.toIAddress()
+            req.appOrDelegatorID.toIAddress()
           );
           definedKeyIdentity = appOrDelegatedIdentity;
           this.props.dispatch(setAppOrDelegatedId(appOrDelegatedIdentity));

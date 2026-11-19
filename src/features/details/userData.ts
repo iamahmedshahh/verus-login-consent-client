@@ -54,9 +54,9 @@ export async function prepareUserDataDetail(
 
   const vdxfkeys = detail.searchDataKey.flatMap(obj => Object.keys(obj));
 
-  // This is safe since if the request has invalid appOrDelegatedID,
+  // This is safe since if the request has invalid appOrDelegatorID,
   // then an error should have already been thrown.
-  const scope = request.appOrDelegatedID ? request.appOrDelegatedID.toIAddress() : scopeAddress;
+  const scope = request.appOrDelegatorID ? request.appOrDelegatorID.toIAddress() : scopeAddress;
 
   try {
     const retrieved = await getCredentialsByScope(chainId, currentAddress, scope, vdxfkeys);

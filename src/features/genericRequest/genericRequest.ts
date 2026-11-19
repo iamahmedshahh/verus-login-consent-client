@@ -1,7 +1,9 @@
 import {
+  AppEncryptionRequestOrdinalVDXFObject,
   CREATE_WALLET_BACKUP_DETAILS_VDXF_ORDINAL,
   GenericRequest,
   SPENDABLE_KEY_DETAILS_VDXF_ORDINAL,
+  UserDataRequestOrdinalVDXFObject,
   VERUSPAY_INVOICE_DETAILS_VDXF_ORDINAL,
 } from 'verus-typescript-primitives';
 import {VerusIdInterface} from 'verusid-ts-client';
@@ -15,6 +17,27 @@ const UNSIGNED_DETAIL_TYPES = [
   SPENDABLE_KEY_DETAILS_VDXF_ORDINAL,
   CREATE_WALLET_BACKUP_DETAILS_VDXF_ORDINAL,
 ];
+
+/*
+ * Like Verus Mobile, keys and saved logins only leave the wallet encrypted, so the request has
+ * to name the address to encrypt them to.
+ */
+export function assertRequestNamesReplyAddresses(request: GenericRequest) {
+  for (const detail of request.details) {
+    if (detail instanceof AppEncryptionRequestOrdinalVDXFObject) {
+      if (!detail.data.hasEncryptResponseToAddress()) {
+        throw new Error('App encryption requests must specify encryptResponseToAddress.');
+      }
+    }
+
+    if (
+      detail instanceof UserDataRequestOrdinalVDXFObject &&
+      !request.hasEncryptResponseToAddress()
+    ) {
+      throw new Error('Credential user data requests must specify encryptResponseToAddress.');
+    }
+  }
+}
 
 /*
  * Checks the validity of a generic request and throws errors for any issues found.
@@ -47,7 +70,7 @@ export async function checkGenericRequest(
       throw new Error('The request is not signed.');
     }
 
-    if (request.hasAppOrDelegatedID()) {
+    if (request.hasAppOrDelegatorID()) {
       throw new Error('The request has an app or delegated ID and must be signed.');
     }
   } else {
@@ -57,7 +80,7 @@ export async function checkGenericRequest(
       throw new Error(verificationResult.message);
     }
 
-    if (request.hasAppOrDelegatedID()) {
+    if (request.hasAppOrDelegatorID()) {
       // Check the signing identity is in the wallet, so that the appOrDelegatedId is allowed
       const signingId = request.signature.identityID.toIAddress();
       const identities = getState().identity.identities as Identity[];
@@ -72,4 +95,6 @@ export async function checkGenericRequest(
       }
     }
   }
+
+  assertRequestNamesReplyAddresses(request);
 }

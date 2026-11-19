@@ -94,6 +94,19 @@ const getRequiredIDs = (recipientConstraints: RecipientConstraint[]) => {
   }, new Set<string>());
 };
 
+const getRequiredParents = (recipientConstraints: RecipientConstraint[]) => {
+  return recipientConstraints.reduce((acc, constraint) => {
+    if (constraint.type === RecipientConstraint.REQUIRED_PARENT) {
+      try {
+        acc.add(constraint.identity.toIAddress());
+      } catch {
+        // Skip invalid parents
+      }
+    }
+    return acc;
+  }, new Set<string>());
+};
+
 /*
  * extractLoginDataV2 gets the data from the authentication request detail in a generic request.
  */
@@ -112,6 +125,7 @@ export const extractLoginDataV2 = (
   const recipientConstraints = authRequestDetail?.recipientConstraints ?? [];
   const allowedSystems = getAllowedSystems(recipientConstraints);
   const requiredIDs = getRequiredIDs(recipientConstraints);
+  const requiredParents = getRequiredParents(recipientConstraints);
 
   let canProvision = false;
   let provisioningDetailIndex: number;
@@ -124,7 +138,7 @@ export const extractLoginDataV2 = (
   }
 
   const filterIdentities = (identitiesToFilter: Identity[]): Identity[] => {
-    if (requiredIDs.size === 0 && allowedSystems.size === 0) {
+    if (requiredIDs.size === 0 && allowedSystems.size === 0 && requiredParents.size === 0) {
       return identitiesToFilter;
     }
 
@@ -137,6 +151,11 @@ export const extractLoginDataV2 = (
       }
 
       if (allowedSystems.size > 0 && !allowedSystems.has(chainId)) {
+        return false;
+      }
+
+      // The immediate parent, like Verus Mobile.
+      if (requiredParents.size > 0 && !requiredParents.has(identity.identity.parent)) {
         return false;
       }
 

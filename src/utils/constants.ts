@@ -44,6 +44,8 @@ export const API_EXECUTE_IDENTITY_UPDATE_REQUEST =
 export const API_EXECUTE_APP_ENCRYPTION_REQUEST = 'verusid/generic/execute_app_encryption_request';
 export const API_ENCRYPT_APP_ENCRYPTION_RESPONSE =
   'verusid/generic/encrypt_app_encryption_response';
+export const API_ENCRYPT_GENERIC_RESPONSE_DETAILS =
+  'verusid/generic/encrypt_generic_response_details';
 export const API_SIGN_ID_PROVISIONING_REQUEST = 'verusid/provision/sign_id_provisioning_request';
 export const API_SUBMIT_ID_PROVISIONING_REQUEST =
   'verusid/provision/submit_id_provisioning_request';

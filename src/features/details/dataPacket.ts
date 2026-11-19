@@ -15,6 +15,12 @@ import {Identity} from '#/types/identity';
 
 import {DetailPrepFunction} from './types';
 
+// The bytes Verus Mobile hashes (signDataPacket.js): text as UTF-8, a descriptor as serialized.
+export const getSignableObjectBuffer = (signableObject: DataDescriptor | string): Buffer =>
+  typeof signableObject === 'string'
+    ? Buffer.from(signableObject, 'utf8')
+    : signableObject.toBuffer();
+
 export const prepareDataPacketDetail: DetailPrepFunction = async ordinal => {
   if (!(ordinal instanceof DataPacketRequestOrdinalVDXFObject)) {
     throw new Error('Ordinal is not a DataPacketRequestOrdinalVDXFObject.');
@@ -47,15 +53,19 @@ export async function generateDataPacketResponse(
   // Create signatures for each data descriptor and store them in a single VdxfUniValue.
   const values = [];
 
-  for (const signableObject of dataPacketDetail.signableObjects) {
+  // Statements are signed after the signable objects, one signature each, like Verus Mobile.
+  const objectsToSign = [
+    ...dataPacketDetail.signableObjects,
+    ...(dataPacketDetail.statements ?? []),
+  ];
+
+  for (const signableObject of objectsToSign) {
+    // Sent as hex so the daemon hashes the bytes as they are. With "message" it hashes a
+    // length prefix too, and the signature would not verify like one from Verus Mobile.
     const signParams: SignDataParams = {
       address: signingIdentity.identity.identityaddress,
+      messagehex: getSignableObjectBuffer(signableObject).toString('hex'),
     };
-    if (typeof signableObject === 'string') {
-      signParams.message = signableObject;
-    } else {
-      signParams.messagehex = signableObject.objectdata.toString('hex');
-    }
     try {
       const signatureResult = await signData(chainId, signParams);
 

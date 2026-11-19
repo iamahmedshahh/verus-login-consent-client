@@ -1,3 +1,4 @@
+import BN from 'bn.js';
 import {
   AuthenticationRequestDetails,
   AuthenticationRequestOrdinalVDXFObject,
@@ -18,6 +19,18 @@ function getExpiryLabel(authRequestDetail: AuthenticationRequestDetails): string
   return unixToDate(authRequestDetail.expiryTime.toNumber());
 }
 
+// Same rule and wording as Verus Mobile (authenticationRequestValidator.js).
+export function assertAuthenticationRequestNotExpired(
+  authRequestDetail: AuthenticationRequestDetails,
+  nowSeconds: number = Math.floor(Date.now() / 1000)
+): void {
+  if (!authRequestDetail.hasExpiryTime()) return;
+
+  if (authRequestDetail.expiryTime.lte(new BN(nowSeconds))) {
+    throw new Error('Authentication request has expired.');
+  }
+}
+
 export async function prepareAuthenticationDetail(
   ordinal: OrdinalVDXFObject,
   detailIndex: number,
@@ -33,6 +46,8 @@ export async function prepareAuthenticationDetail(
   if (!authDetail.isValid()) {
     throw new Error('AuthenticationRequestDetails is not valid.');
   }
+
+  assertAuthenticationRequestNotExpired(authDetail);
 
   const state = getState();
 
@@ -85,6 +100,9 @@ export async function generateAuthenticationResponse(
   }
 
   const authRequestDetail = ordinalWrapper.data;
+
+  // Checked again here: the user may have left the window open past the expiry.
+  assertAuthenticationRequestNotExpired(authRequestDetail);
 
   const authResponseDetail = new AuthenticationResponseOrdinalVDXFObject({
     data: new AuthenticationResponseDetails({

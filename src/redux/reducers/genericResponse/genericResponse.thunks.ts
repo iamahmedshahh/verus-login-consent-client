@@ -6,6 +6,7 @@ import {
   VerifiableSignatureData,
 } from 'verus-typescript-primitives';
 
+import {encryptResponseDetails} from '#/features/genericRequest/encryptResponseDetails';
 import {AppThunk} from '#/redux/hooks';
 import {setError} from '#/redux/reducers/error/error.actions';
 import {completeRequest} from '#/redux/reducers/rpc/rpcSlice';
@@ -50,6 +51,12 @@ export function finalizeGenericRequest(genericRequest: GenericRequest, chainId: 
         signature,
         createdAt: new BN((Date.now() / 1000).toFixed(0)),
       });
+
+      // Like Verus Mobile (prepareGenericResponseForSigning.js).
+      if (genericRequest.isTestnet()) response.setIsTestnet();
+
+      // Encrypt before signing, so the signature covers the encrypted details.
+      await encryptResponseDetails(genericRequest, response, chainId, identityAddress);
 
       response.setSigned();
 

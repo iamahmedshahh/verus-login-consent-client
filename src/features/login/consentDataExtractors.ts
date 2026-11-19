@@ -98,7 +98,7 @@ export const extractConsentDataV2 = (
   const responseURIs = request.responseURIs ?? [];
   const responseURIsLabels = responseURIs.map((uri: ResponseURI) => uri.getUriString());
 
-  if (request.hasAppOrDelegatedID() && appOrDelegatedId) {
+  if (request.hasAppOrDelegatorID() && appOrDelegatedId) {
     title += ` on behalf of ${convertFqnToDisplayFormat(appOrDelegatedId.fullyqualifiedname)}`;
   }
 

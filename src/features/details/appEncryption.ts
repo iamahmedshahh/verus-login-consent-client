@@ -2,7 +2,6 @@ import {
   AppEncryptionRequestDetails,
   AppEncryptionRequestOrdinalVDXFObject,
   AppEncryptionResponseDetails,
-  AppEncryptionResponseOrdinalVDXFObject,
   DataDescriptor,
   DataResponseDetails,
   DataResponseOrdinalVDXFObject,
@@ -31,7 +30,7 @@ export async function generateAppEncryptionResponse(
   request: GenericRequest,
   detailIndex: number,
   getState: () => RootState
-): Promise<DataResponseOrdinalVDXFObject | AppEncryptionResponseOrdinalVDXFObject> {
+): Promise<DataResponseOrdinalVDXFObject> {
   const ordinalWrapper = request.details[detailIndex];
 
   if (!(ordinalWrapper instanceof AppEncryptionRequestOrdinalVDXFObject)) {
@@ -39,6 +38,11 @@ export async function generateAppEncryptionResponse(
   }
 
   const requestDetail: AppEncryptionRequestDetails = ordinalWrapper.data;
+
+  // checkGenericRequest refuses these already. Like Verus Mobile, the keys are never sent unencrypted.
+  if (!requestDetail.hasEncryptResponseToAddress()) {
+    throw new Error('App encryption requests must specify encryptResponseToAddress.');
+  }
 
   const state = getState();
   const chainId = state.chainMetadata.chainId;
@@ -53,8 +57,8 @@ export async function generateAppEncryptionResponse(
 
   let toID: string;
 
-  if (request.appOrDelegatedID) {
-    toID = request.appOrDelegatedID.toIAddress();
+  if (request.appOrDelegatorID) {
+    toID = request.appOrDelegatorID.toIAddress();
   } else {
     toID = signingIdentity.identity.identityaddress;
   }
@@ -82,29 +86,23 @@ export async function generateAppEncryptionResponse(
     responseData.toggleContainsRequestID();
   }
 
-  if (requestDetail.hasEncryptResponseToAddress()) {
-    // Store the AppEncryptionResponse detail within the DataPacketResponse so that
-    // the keys can be encrypted for secure transit.
-    const encryptedDataDescriptorJson = await encryptAppEncryptionResponse(
-      chainId,
-      responseData,
-      fromID,
-      requestDetail.encryptResponseToAddress.toAddressString()
-    );
+  // Store the AppEncryptionResponse detail within the DataPacketResponse so that
+  // the keys can be encrypted for secure transit.
+  const encryptedDataDescriptorJson = await encryptAppEncryptionResponse(
+    chainId,
+    responseData,
+    fromID,
+    requestDetail.encryptResponseToAddress.toAddressString()
+  );
 
-    const encryptedDataDescriptor = DataDescriptor.fromJson(encryptedDataDescriptorJson);
+  const encryptedDataDescriptor = DataDescriptor.fromJson(encryptedDataDescriptorJson);
 
-    const encryptedResponseDetail = new DataResponseDetails({
-      requestID: requestDetail.requestID,
-      data: encryptedDataDescriptor,
-    });
+  const encryptedResponseDetail = new DataResponseDetails({
+    requestID: requestDetail.requestID,
+    data: encryptedDataDescriptor,
+  });
 
-    return new DataResponseOrdinalVDXFObject({
-      data: encryptedResponseDetail,
-    });
-  }
-
-  return new AppEncryptionResponseOrdinalVDXFObject({
-    data: responseData,
+  return new DataResponseOrdinalVDXFObject({
+    data: encryptedResponseDetail,
   });
 }
