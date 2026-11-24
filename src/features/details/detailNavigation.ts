@@ -12,6 +12,7 @@ import {
 
 import {AppDispatch, RootState} from '#/redux/store';
 import {
+  APP_ENCRYPTION_REVIEW,
   CREDENTIALS_REVIEW,
   DATA_PACKET_REVIEW,
   IDENTITY_UPDATE_CONTENTMULTIMAP,
@@ -68,9 +69,9 @@ const DETAIL_MAP: Record<string, DetailMapEntry> = {
     responseGenerator: generateIdentityUpdateResponse,
   },
   [APP_ENCRYPTION_REQUEST_VDXF_ORDINAL.toNumber()]: {
-    type: 'headless',
+    type: 'standard',
     prepFunction: prepareAppEncryptionDetail,
-    screens: [],
+    screens: [APP_ENCRYPTION_REVIEW],
     responseGenerator: generateAppEncryptionResponse,
   },
   [DATA_PACKET_REQUEST_VDXF_ORDINAL.toNumber()]: {

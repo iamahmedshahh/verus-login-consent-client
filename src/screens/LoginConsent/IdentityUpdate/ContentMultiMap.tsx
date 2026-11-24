@@ -15,6 +15,9 @@ import {
   navigateGenericRequest,
 } from '#/redux/reducers/navigation/navigationSlice';
 import {RootState} from '#/redux/store';
+import {Identity} from '#/types/identity';
+import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
+import {findIdentityToUpdate} from '#/utils/identity';
 
 const IdentityUpdateContentMultiMap: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -22,6 +25,7 @@ const IdentityUpdateContentMultiMap: React.FC = () => {
 
   const deeplinkData = useSelector((state: RootState) => state.deeplink.data);
   const currentDetailIndex = useSelector((state: RootState) => state.navigation.currentDetailIndex);
+  const identities = useSelector((state: RootState) => state.identity.identities) as Identity[];
 
   const isValidDeeplink = deeplinkData instanceof GenericRequest;
   const ordinal = isValidDeeplink ? deeplinkData.details[currentDetailIndex] : null;
@@ -42,7 +46,8 @@ const IdentityUpdateContentMultiMap: React.FC = () => {
   }
 
   const deeplinkDetails = ordinal.data;
-  const name = deeplinkDetails?.identity?.name || '';
+  const identityToUpdate = findIdentityToUpdate(deeplinkData, deeplinkDetails, identities);
+  const name = convertFqnToDisplayFormat(identityToUpdate.fullyqualifiedname);
 
   const contentMultiMapEntries = deeplinkDetails?.identity?.contentMultiMap?.kvContent
     ? Array.from(deeplinkDetails.identity.contentMultiMap.kvContent.entries())
@@ -72,7 +77,7 @@ const IdentityUpdateContentMultiMap: React.FC = () => {
 
   return (
     <PageLayout
-      title={`Review content additions to ${name + '@'}`}
+      title={`Review content additions to ${name}`}
       loading={loading}
       contentStyle={{
         display: 'flex',

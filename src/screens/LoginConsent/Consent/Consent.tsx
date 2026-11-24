@@ -2,10 +2,19 @@ import React, {useEffect, useState} from 'react';
 import {useSelector} from 'react-redux';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import {GenericRequest, LoginConsentRequest} from 'verus-typescript-primitives';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import {
+  AuthenticationRequestOrdinalVDXFObject,
+  GenericRequest,
+  IdentityUpdateRequestOrdinalVDXFObject,
+  LoginConsentRequest,
+} from 'verus-typescript-primitives';
 
 import CollapsibleListSection from '#/components/CollapsibleListSection';
 import IdentityDetails from '#/components/Identity';
@@ -16,14 +25,19 @@ import {extractConsentDataV1, extractConsentDataV2} from '#/features/login/conse
 import {useAppDispatch} from '#/redux/hooks';
 import {setError} from '#/redux/reducers/error/error.actions';
 import {selectDetailById} from '#/redux/reducers/genericRequest/authenticationSlice';
-import {checkAndUpdateIdentities} from '#/redux/reducers/identity/identity.actions';
+import {
+  checkAndUpdateIdentities,
+  setActiveVerusId,
+} from '#/redux/reducers/identity/identity.actions';
 import {
   navigateGenericRequest,
   setExternalAction,
   setNavigationPath,
 } from '#/redux/reducers/navigation/navigationSlice';
 import {RootState} from '#/redux/store';
+import {Identity} from '#/types/identity';
 import {EXTERNAL_ACTION, EXTERNAL_CHAIN_START, SELECT_LOGIN_ID} from '#/utils/constants';
+import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
 import {unixToDate} from '#/utils/math';
 
 interface ConsentProps {
@@ -43,6 +57,10 @@ const Consent: React.FC<ConsentProps> = props => {
   const appOrDelegatedIdentity = useSelector(
     (state: RootState) => state.genericRequest.appOrDelegatedId.identity
   );
+  const identities = useSelector((state: RootState) => state.identity.identities) as Identity[];
+  const activeIdentity = useSelector(
+    (state: RootState) => state.identity.activeIdentity
+  ) as Identity;
 
   const firstDetailIndex = 0;
   const preppedAuthDetail = useSelector((state: RootState) =>
@@ -54,6 +72,18 @@ const Consent: React.FC<ConsentProps> = props => {
   const time = sigBlockInfo?.time;
 
   const isGenericRequest = deeplinkData instanceof GenericRequest;
+  const firstDetail = isGenericRequest ? deeplinkData.details[firstDetailIndex] : null;
+
+  // The reply is signed by the identity picked on the sign-in screen, or by the identity being
+  // updated when that is the only detail. Other requests pick it here, like "Respond With" in
+  // Verus Mobile.
+  const needsReplyIdentity =
+    isGenericRequest &&
+    !(
+      firstDetail instanceof AuthenticationRequestOrdinalVDXFObject ||
+      firstDetail instanceof IdentityUpdateRequestOrdinalVDXFObject
+    );
+  const replyIdentityMissing = needsReplyIdentity && activeIdentity == null;
 
   const signedByMissing = signedBy == null;
 
@@ -76,7 +106,8 @@ const Consent: React.FC<ConsentProps> = props => {
         // constraints.
         Math.max(0, currentDetailIndex),
         appOrDelegatedIdentity,
-        preppedAuthDetail
+        preppedAuthDetail,
+        identities
       )
     : extractConsentDataV1(deeplinkData as LoginConsentRequest, signedBy);
 
@@ -107,6 +138,10 @@ const Consent: React.FC<ConsentProps> = props => {
     await completeLoginConsent();
   };
 
+  const selectReplyIdentity = (address: string): void => {
+    dispatch(setActiveVerusId(identities.find(id => id.identity.identityaddress === address)));
+  };
+
   return (
     <PageLayout
       title={title}
@@ -134,7 +169,7 @@ const Consent: React.FC<ConsentProps> = props => {
           <Button
             variant="contained"
             color="success"
-            disabled={loading}
+            disabled={loading || replyIdentityMissing}
             onClick={() => tryLogin()}
             style={{
               width: 120,
@@ -216,6 +251,26 @@ const Consent: React.FC<ConsentProps> = props => {
           )}
         </List>
       </Card>
+
+      {needsReplyIdentity && (
+        <FormControl fullWidth size="small">
+          <InputLabel id="reply-identity-label">Respond with</InputLabel>
+          <Select
+            labelId="reply-identity-label"
+            label="Respond with"
+            value={activeIdentity == null ? '' : activeIdentity.identity.identityaddress}
+            disabled={loading}
+            sx={{textAlign: 'start'}}
+            onChange={e => selectReplyIdentity(e.target.value)}
+          >
+            {identities.map(id => (
+              <MenuItem key={id.identity.identityaddress} value={id.identity.identityaddress}>
+                {convertFqnToDisplayFormat(id.fullyqualifiedname)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
     </PageLayout>
   );
 };

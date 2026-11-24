@@ -5,7 +5,9 @@ import ExpandMore from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -29,13 +31,22 @@ import {RootState} from '#/redux/store';
 import {getIdentity} from '#/rpc/calls/getIdentity';
 import {Identity} from '#/types/identity';
 import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
-import {createIdentityDescriptor} from '#/utils/identity';
+import {createIdentityDescriptor, findIdentityToUpdate} from '#/utils/identity';
 
 interface IdentityFieldChange {
   field: string;
   newValue: string;
   oldValue: string;
 }
+
+// Like Verus Mobile, changes to who controls the identity or where its funds go have to be
+// acknowledged. Revocation and recovery are left out since requests changing them are unlikely.
+const HIGH_RISK_WARNINGS: Record<string, string> = {
+  'Primary Addresses': 'Primary addresses control who can spend and sign for this ID.',
+  'Private Addresses':
+    'Private payments sent to this identity can be directed to the private address.',
+  Timelock: 'This can lock the identity and change when its funds can be spent.',
+};
 
 const processIdentityChanges = async (
   details: IdentityUpdateRequestDetails,
@@ -210,6 +221,7 @@ const IdentityUpdateCore: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [changes, setChanges] = useState<IdentityFieldChange[]>([]);
   const [openDropdowns, setOpenDropdowns] = useState<{[key: number]: boolean}>({});
+  const [acknowledgedHighRisk, setAcknowledgedHighRisk] = useState<boolean>(false);
   const [fetchError, setFetchError] = useState({
     showError: false,
     description: '',
@@ -240,10 +252,11 @@ const IdentityUpdateCore: React.FC = () => {
 
   const details = ordinal.data;
 
-  const identityToUpdate = identities.find(id => {
-    return id.identity.name === details.identity.name;
-  });
-  const name = identityToUpdate?.identity.name;
+  const identityToUpdate = findIdentityToUpdate(deeplinkData, details, identities);
+  const name = convertFqnToDisplayFormat(identityToUpdate.fullyqualifiedname);
+
+  const hasHighRiskChanges = changes.some(change => HIGH_RISK_WARNINGS[change.field] != null);
+  const highRiskNotAcknowledged = hasHighRiskChanges && !acknowledgedHighRisk;
 
   const handleDropdownToggle = (index: number) => {
     setOpenDropdowns(prev => ({
@@ -298,7 +311,7 @@ const IdentityUpdateCore: React.FC = () => {
 
   return (
     <PageLayout
-      title={`Review changes to ${name + '@'}`}
+      title={`Review changes to ${name}`}
       loading={loading}
       contentStyle={{
         display: 'flex',
@@ -323,7 +336,7 @@ const IdentityUpdateCore: React.FC = () => {
           </Button>
           <Button
             variant="contained"
-            disabled={loading}
+            disabled={loading || highRiskNotAcknowledged}
             color="success"
             onClick={() => handleNext()}
             style={{
@@ -374,6 +387,14 @@ const IdentityUpdateCore: React.FC = () => {
                     </Typography>
                   </Box>
                 </ListItem>
+
+                {HIGH_RISK_WARNINGS[change.field] && (
+                  <ListItem dense sx={{py: 0}}>
+                    <Typography variant="body2" color="warning.main">
+                      {HIGH_RISK_WARNINGS[change.field]}
+                    </Typography>
+                  </ListItem>
+                )}
 
                 <ListItemButton
                   divider={index < changes.length - 1}
@@ -434,6 +455,18 @@ const IdentityUpdateCore: React.FC = () => {
           </List>
         )}
       </Card>
+      {hasHighRiskChanges && (
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={acknowledgedHighRisk}
+              onChange={e => setAcknowledgedHighRisk(e.target.checked)}
+              color="primary"
+            />
+          }
+          label="I understand these high-risk changes."
+        />
+      )}
       <SnackbarAlert
         open={fetchError.showError}
         text={fetchError.description}

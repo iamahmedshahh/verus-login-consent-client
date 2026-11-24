@@ -3,6 +3,7 @@ import React from 'react';
 import Loading from '#/components/Loading';
 import {setError} from '#/redux/reducers/error/error.actions';
 import {
+  APP_ENCRYPTION_REVIEW,
   CONSENT_TO_SCOPE,
   CREDENTIALS_REVIEW,
   DATA_PACKET_REVIEW,
@@ -18,6 +19,7 @@ import {
   SPENDABLE_KEY_UNLOCK,
 } from '#/utils/constants';
 
+import AppEncryption from './AppEncryption/AppEncryption';
 import Consent from './Consent/Consent';
 import CredentialsReview from './CredentialsReview/CredentialsReview';
 import DataPacket from './DataPacket/DataPacket';
@@ -60,6 +62,7 @@ export const LoginConsentRender = function (
     [IDENTITY_UPDATE_CONTENTMULTIMAP]: <IdentityUpdateContentMultiMap />,
     [CREDENTIALS_REVIEW]: <CredentialsReview setRequestResult={setRequestResult} />,
     [DATA_PACKET_REVIEW]: <DataPacket />,
+    [APP_ENCRYPTION_REVIEW]: <AppEncryption />,
     [PROVISIONING_FORM]: <ProvisionIdentityForm />,
     [PROVISIONING_CONFIRM]: <ProvisionIdentityConfirm />,
     [PROVISIONING_RESULT]: <ProvisionIdentityResult />,

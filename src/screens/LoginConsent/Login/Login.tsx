@@ -43,6 +43,7 @@ import {
   PROVISIONING_FORM,
   REDIRECT,
 } from '#/utils/constants';
+import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
 
 interface LoginProps {
   canProcessRequest: () => boolean;
@@ -251,10 +252,9 @@ const Login = (props: LoginProps) => {
               </MenuItem>
               {filteredIdentities.map((id: Identity, index: number) => {
                 return (
-                  <MenuItem
-                    key={index}
-                    value={id.identity.identityaddress}
-                  >{`${id.identity.name}@`}</MenuItem>
+                  <MenuItem key={index} value={id.identity.identityaddress}>
+                    {convertFqnToDisplayFormat(id.fullyqualifiedname)}
+                  </MenuItem>
                 );
               })}
             </Select>

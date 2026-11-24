@@ -3,6 +3,7 @@ import React from 'react';
 import CollapsibleListSection from '#/components/CollapsibleListSection';
 import NestedListItem from '#/components/NestedListItem';
 import {Identity} from '#/types/identity';
+import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
 import {createIdentityDescriptor} from '#/utils/identity';
 
 interface IdentityField {
@@ -30,7 +31,7 @@ const IdentityDetails: React.FC<IdentityDetailsProps> = ({
   initiallyExpanded = false,
   divider = true,
 }) => {
-  const identityName = (identity?.identity?.name as string) || '-';
+  const identityName = identity ? convertFqnToDisplayFormat(identity.fullyqualifiedname) : '-';
   const identityAddress = identity?.identity?.identityaddress || '-';
   const headerPrimary = identity?.identity?.identityaddress
     ? `${identityName} (${identityAddress})`

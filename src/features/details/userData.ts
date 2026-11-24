@@ -31,6 +31,12 @@ export async function prepareUserDataDetail(
     return;
   }
 
+  // Without a sign-in, the identity is picked on the overview after this first prep, so the
+  // credentials are fetched when the detail is reached.
+  if (!identity.activeIdentity) {
+    return;
+  }
+
   const chainId = state.chainMetadata.chainId;
   const request = state.deeplink.data as GenericRequest;
   const scopeIdentity = state.signatureInfo.signedBy;

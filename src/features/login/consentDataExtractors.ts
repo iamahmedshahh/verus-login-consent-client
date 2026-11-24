@@ -1,15 +1,18 @@
 import {
   AuthenticationRequestOrdinalVDXFObject,
+  DataPacketRequestOrdinalVDXFObject,
   GenericRequest,
   IdentityUpdateRequestOrdinalVDXFObject,
   LoginConsentRequest,
   RedirectUri,
   ResponseURI,
+  UserDataRequestOrdinalVDXFObject,
 } from 'verus-typescript-primitives';
 
 import {Identity} from '#/types/identity';
 import {SCOPES, SUPPORTED_CREDENTIALS} from '#/utils/constants';
 import {convertFqnToDisplayFormat} from '#/utils/fullyqualifiedname';
+import {findIdentityToUpdate} from '#/utils/identity';
 import {getVDXFKeyLabel} from '#/utils/vdxfTypeLabels';
 
 export interface ConsentData {
@@ -69,7 +72,8 @@ export const extractConsentDataV2 = (
   signedBy: Identity,
   currentDetailIndex: number,
   appOrDelegatedId?: Identity | null,
-  preppedAuthDetail?: PreppedAuthDetail | null
+  preppedAuthDetail?: PreppedAuthDetail | null,
+  identities: Identity[] = []
 ): ConsentData => {
   const signerFqn = convertFqnToDisplayFormat(signedBy.fullyqualifiedname);
   const systemId = request.signature?.systemID.toIAddress() || '';
@@ -92,7 +96,16 @@ export const extractConsentDataV2 = (
       expiryLabel = preppedAuthDetail.expiryLabel;
     }
   } else if (ordinalWrapper instanceof IdentityUpdateRequestOrdinalVDXFObject) {
-    title = `${signerFqn} is requesting to update ${ordinalWrapper.data.identity?.name}@`;
+    // The first detail is prepared before this overview, so the identity is in the wallet.
+    const identityToUpdate = findIdentityToUpdate(request, ordinalWrapper.data, identities);
+    const identityName = convertFqnToDisplayFormat(identityToUpdate.fullyqualifiedname);
+
+    title = `${signerFqn} is requesting to update ${identityName}`;
+  } else if (ordinalWrapper instanceof DataPacketRequestOrdinalVDXFObject) {
+    // Without a sign-in this is not a login, so name the request like Verus Mobile does.
+    title = `${signerFqn} is requesting signatures over data`;
+  } else if (ordinalWrapper instanceof UserDataRequestOrdinalVDXFObject) {
+    title = `${signerFqn} is requesting credential data from your identity`;
   }
 
   const responseURIs = request.responseURIs ?? [];

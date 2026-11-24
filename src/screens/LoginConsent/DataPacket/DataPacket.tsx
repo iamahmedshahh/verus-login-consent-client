@@ -1,15 +1,25 @@
+import {createHash} from 'crypto';
+
 import React, {useEffect, useState} from 'react';
 import {useSelector} from 'react-redux';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import {DataPacketRequestOrdinalVDXFObject, GenericRequest} from 'verus-typescript-primitives';
+import {
+  DataDescriptor,
+  DataPacketRequestOrdinalVDXFObject,
+  GenericRequest,
+} from 'verus-typescript-primitives';
 
 import CollapsibleListSection from '#/components/CollapsibleListSection';
+import {LIST_ITEM_SLOTS} from '#/components/listItemSlots';
 import NestedListItem from '#/components/NestedListItem';
 import PageLayout from '#/components/PageLayout';
+import {getSignableObjectBuffer} from '#/features/details/dataPacket';
 import {isLastDetail} from '#/features/details/detailNavigation';
 import {useAppDispatch} from '#/redux/hooks';
 import {setError} from '#/redux/reducers/error/error.actions';
@@ -18,13 +28,24 @@ import {
   navigateGenericRequest,
 } from '#/redux/reducers/navigation/navigationSlice';
 import {RootState} from '#/redux/store';
+import {Identity} from '#/types/identity';
+import {createIdentityDescriptor} from '#/utils/identity';
+
+// The hash of the bytes the identity signs, like Verus Mobile shows.
+const getSignedHash = (signableObject: DataDescriptor | string): string =>
+  createHash('sha256').update(getSignableObjectBuffer(signableObject)).digest('hex');
 
 const DataPacket: React.FC = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(false);
+  const [agreedStatements, setAgreedStatements] = useState<Record<number, boolean>>({});
+  const [agreedObjects, setAgreedObjects] = useState<Record<number, boolean>>({});
 
   const deeplinkData = useSelector((state: RootState) => state.deeplink.data);
   const currentDetailIndex = useSelector((state: RootState) => state.navigation.currentDetailIndex);
+  const activeIdentity = useSelector(
+    (state: RootState) => state.identity.activeIdentity
+  ) as Identity;
 
   const isValidDeeplink = deeplinkData instanceof GenericRequest;
   const ordinal = isValidDeeplink ? deeplinkData.details[currentDetailIndex] : null;
@@ -43,6 +64,26 @@ const DataPacket: React.FC = () => {
   }
 
   const dataPacketDetails = ordinal.data;
+
+  // Like Verus Mobile, each statement and data item has to be agreed to before it is signed.
+  const hasAgreedToAll =
+    (dataPacketDetails.statements ?? []).every((_, index) => agreedStatements[index]) &&
+    dataPacketDetails.signableObjects.every((_, index) => agreedObjects[index]);
+
+  const renderObjectAgreement = (index: number): React.ReactNode => (
+    <ListItem divider sx={{pl: 6}}>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={!!agreedObjects[index]}
+            onChange={e => setAgreedObjects(current => ({...current, [index]: e.target.checked}))}
+            color="primary"
+          />
+        }
+        label={`I reviewed data item ${index + 1} and agree to sign it`}
+      />
+    </ListItem>
+  );
 
   const getDisplayData = (objectdata: Buffer, mimeType?: string): string => {
     if (mimeType && mimeType.startsWith('text/')) {
@@ -66,6 +107,12 @@ const DataPacket: React.FC = () => {
             initiallyExpanded
           >
             <NestedListItem primary="Data" secondary={object} variant="standard" />
+            <NestedListItem
+              primary="SHA-256 hash being signed"
+              secondary={getSignedHash(object)}
+              variant="standard"
+            />
+            {renderObjectAgreement(index)}
           </CollapsibleListSection>
         );
       }
@@ -91,6 +138,12 @@ const DataPacket: React.FC = () => {
               variant="standard"
             />
           )}
+          <NestedListItem
+            primary="SHA-256 hash being signed"
+            secondary={getSignedHash(object)}
+            variant="standard"
+          />
+          {renderObjectAgreement(index)}
         </CollapsibleListSection>
       );
     });
@@ -145,7 +198,7 @@ const DataPacket: React.FC = () => {
           </Button>
           <Button
             variant="contained"
-            disabled={loading}
+            disabled={loading || !hasAgreedToAll}
             color={continueButtonColor}
             onClick={() => handleNext()}
             style={{
@@ -169,6 +222,14 @@ const DataPacket: React.FC = () => {
         }}
       >
         <List disablePadding sx={{'& > *:last-child': {borderBottom: 'none'}}}>
+          <ListItem divider>
+            <ListItemText
+              primary="Signing as"
+              secondary={createIdentityDescriptor(activeIdentity)}
+              slotProps={LIST_ITEM_SLOTS.standard}
+            />
+          </ListItem>
+
           {dataPacketDetails.hasStatements() &&
             dataPacketDetails.statements &&
             dataPacketDetails.statements.length > 0 && (
@@ -184,7 +245,23 @@ const DataPacket: React.FC = () => {
 
                 <List component="div" dense disablePadding>
                   {dataPacketDetails.statements.map((statement, index) => (
-                    <NestedListItem key={index} primary={statement} />
+                    <ListItem key={index} divider sx={{pl: 4}}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={!!agreedStatements[index]}
+                            onChange={e =>
+                              setAgreedStatements(current => ({
+                                ...current,
+                                [index]: e.target.checked,
+                              }))
+                            }
+                            color="primary"
+                          />
+                        }
+                        label={statement}
+                      />
+                    </ListItem>
                   ))}
                 </List>
               </>

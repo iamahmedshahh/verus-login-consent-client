@@ -4,6 +4,8 @@ import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
@@ -41,6 +43,7 @@ interface CredentialsReviewProps {
 const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult}) => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
+  const [agreedCredentials, setAgreedCredentials] = useState<Record<number, boolean>>({});
 
   const deeplinkData = useSelector((state: RootState) => state.deeplink.data);
   const chainId = useSelector((state: RootState) => state.chainMetadata.chainId);
@@ -87,6 +90,9 @@ const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult})
         appOrDelegatedIdentity
       )
     : extractCredentialsReviewDataV1(deeplinkData, signedBy!, v1Credentials);
+
+  // Like Verus Mobile, each credential has to be agreed to before it is sent.
+  const hasAgreedToAllCredentials = credentials.every((_, index) => agreedCredentials[index]);
 
   const cancel = () => {
     if (isGenericRequest) {
@@ -154,7 +160,7 @@ const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult})
           <Button
             variant="contained"
             color={continueButtonColor}
-            disabled={loading}
+            disabled={loading || !hasAgreedToAllCredentials}
             onClick={() => continueLogin()}
             style={{
               width: 120,
@@ -166,6 +172,12 @@ const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult})
         </>
       }
     >
+      {credentials.length > 0 && (
+        <Alert severity="warning" sx={{width: '100%', textAlign: 'left'}}>
+          {`The credentials below will be ${isGenericRequest ? 'encrypted and ' : ''}sent to ${signerFqn}. Only continue if every credential is expected.`}
+        </Alert>
+      )}
+
       <Card
         square
         sx={{
@@ -182,9 +194,28 @@ const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult})
           {credentials.length > 0 && (
             <>
               <List component="div">
-                {credentials.map((credential, index) =>
-                  renderCredentialComponent(credential, index)
-                )}
+                {credentials.map((credential, index) => (
+                  <React.Fragment key={index}>
+                    {renderCredentialComponent(credential, index)}
+                    <ListItem divider dense sx={{pl: 4}}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={!!agreedCredentials[index]}
+                            onChange={e =>
+                              setAgreedCredentials(current => ({
+                                ...current,
+                                [index]: e.target.checked,
+                              }))
+                            }
+                            color="primary"
+                          />
+                        }
+                        label={`I agree to send credential ${index + 1}`}
+                      />
+                    </ListItem>
+                  </React.Fragment>
+                ))}
               </List>
             </>
           )}

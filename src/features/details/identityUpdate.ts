@@ -13,6 +13,7 @@ import {setActiveVerusId} from '#/redux/reducers/identity/identity.actions';
 import {AppDispatch, RootState} from '#/redux/store';
 import {executeIdentityUpdateRequest} from '#/rpc/calls/executeIdentityUpdateRequest';
 import {Identity} from '#/types/identity';
+import {findIdentityToUpdate} from '#/utils/identity';
 import {capitalizeString} from '#/utils/stringUtils';
 import {getKnownVDXFKeyName} from '#/utils/vdxfTypeLabels';
 
@@ -33,13 +34,13 @@ export async function prepareIdentityUpdateDetail(
   }
 
   const state = getState();
+  const request = state.deeplink.data as GenericRequest;
   const identities = state.identity.identities as Identity[];
-  const detailIdentityName = detail.identity.name;
 
-  const matchingIdentity = identities.find(id => id.identity.name === detailIdentityName);
+  const matchingIdentity = findIdentityToUpdate(request, detail, identities);
 
   if (!matchingIdentity) {
-    throw new Error(`No identity found for "${detailIdentityName}" in the available identities.`);
+    throw new Error(`No identity found for "${detail.identity.name}" in the available identities.`);
   }
 
   validateAndAddCmmKeys(detail, dispatch, getState);
