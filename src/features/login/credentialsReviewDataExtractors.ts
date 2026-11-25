@@ -74,12 +74,12 @@ export const extractCredentialsReviewDataV2 = (
   signedBy: Identity,
   credentials: Credential[],
   currentDetailIndex: number,
-  appOrDelegatedId?: Identity | null
+  appOrDelegatorId?: Identity | null
 ): CredentialsReviewData => {
   let signerFqn: string;
 
-  if (request.hasAppOrDelegatorID() && appOrDelegatedId) {
-    signerFqn = convertFqnToDisplayFormat(appOrDelegatedId.fullyqualifiedname);
+  if (request.hasAppOrDelegatorID() && appOrDelegatorId) {
+    signerFqn = convertFqnToDisplayFormat(appOrDelegatorId.fullyqualifiedname);
   } else {
     signerFqn = convertFqnToDisplayFormat(signedBy.fullyqualifiedname);
   }

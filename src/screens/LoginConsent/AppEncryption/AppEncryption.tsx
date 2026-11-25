@@ -33,8 +33,8 @@ const AppEncryption: React.FC = () => {
     (state: RootState) => state.identity.activeIdentity
   ) as Identity;
   const signedBy = useSelector((state: RootState) => state.signatureInfo.signedBy);
-  const appOrDelegatedIdentity = useSelector(
-    (state: RootState) => state.genericRequest.appOrDelegatedId.identity
+  const appOrDelegatorIdentity = useSelector(
+    (state: RootState) => state.genericRequest.appOrDelegatorId.identity
   );
 
   const isValidDeeplink = deeplinkData instanceof GenericRequest;
@@ -57,7 +57,7 @@ const AppEncryption: React.FC = () => {
 
   // Like generateAppEncryptionResponse, the keys are for the app the request is on behalf of,
   // otherwise for the signer.
-  const appIdentity = appOrDelegatedIdentity ?? signedBy;
+  const appIdentity = appOrDelegatorIdentity ?? signedBy;
   const appName = convertFqnToDisplayFormat(appIdentity.fullyqualifiedname);
 
   const isLastDetailInRequest = isLastDetail(deeplinkData, currentDetailIndex);

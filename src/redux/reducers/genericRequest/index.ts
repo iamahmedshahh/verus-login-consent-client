@@ -1,6 +1,6 @@
 import {combineReducers} from '@reduxjs/toolkit';
 
-import appOrDelegatedIdReducer from './appOrDelegatedIdSlice';
+import appOrDelegatorIdReducer from './appOrDelegatorIdSlice';
 import authReducer from './authenticationSlice';
 import definedDataKeysReducer from './definedDataKeysSlice';
 import userDataReducer from './userDataSlice';
@@ -8,7 +8,7 @@ import userDataReducer from './userDataSlice';
 const genericRequestReducer = combineReducers({
   authDetails: authReducer,
   userData: userDataReducer,
-  appOrDelegatedId: appOrDelegatedIdReducer,
+  appOrDelegatorId: appOrDelegatorIdReducer,
   definedDataKeys: definedDataKeysReducer,
 });
 

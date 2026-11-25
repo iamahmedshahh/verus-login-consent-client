@@ -54,8 +54,8 @@ const Consent: React.FC<ConsentProps> = props => {
   const chainId = useSelector((state: RootState) => state.chainMetadata.chainId);
   const chainName = useSelector((state: RootState) => state.chainMetadata.chainName);
   const signatureInfo = useSelector((state: RootState) => state.signatureInfo);
-  const appOrDelegatedIdentity = useSelector(
-    (state: RootState) => state.genericRequest.appOrDelegatedId.identity
+  const appOrDelegatorIdentity = useSelector(
+    (state: RootState) => state.genericRequest.appOrDelegatorId.identity
   );
   const identities = useSelector((state: RootState) => state.identity.identities) as Identity[];
   const activeIdentity = useSelector(
@@ -105,7 +105,7 @@ const Consent: React.FC<ConsentProps> = props => {
         // we need to clamp this to 0 in order to get the first detail's info like
         // constraints.
         Math.max(0, currentDetailIndex),
-        appOrDelegatedIdentity,
+        appOrDelegatorIdentity,
         preppedAuthDetail,
         identities
       )

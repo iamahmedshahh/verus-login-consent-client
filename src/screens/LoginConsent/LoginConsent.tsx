@@ -15,7 +15,7 @@ import {checkLoginConsentRequest} from '#/features/login/loginConsentRequest';
 import {setChainMetadata} from '#/redux/reducers/chainMetadata/chainMetadata.actions';
 import {DeeplinkData} from '#/redux/reducers/deeplink/deeplinkSlice';
 import {setError} from '#/redux/reducers/error/error.actions';
-import {setAppOrDelegatedId} from '#/redux/reducers/genericRequest/appOrDelegatedIdSlice';
+import {setAppOrDelegatorId} from '#/redux/reducers/genericRequest/appOrDelegatorIdSlice';
 import {setDefinedDataKeys} from '#/redux/reducers/genericRequest/definedDataKeysSlice';
 import {
   checkAndUpdateAll,
@@ -264,15 +264,15 @@ export class LoginConsent extends React.Component<LoginConsentProps, LoginConsen
 
         let definedKeyIdentity = signingIdentity;
         if (req.hasAppOrDelegatorID() && req.appOrDelegatorID.toAddress() !== signingId) {
-          const appOrDelegatedIdentity = await getIdentityContent(
+          const appOrDelegatorIdentity = await getIdentityContent(
             chainId,
             req.appOrDelegatorID.toIAddress()
           );
-          definedKeyIdentity = appOrDelegatedIdentity;
-          this.props.dispatch(setAppOrDelegatedId(appOrDelegatedIdentity));
+          definedKeyIdentity = appOrDelegatorIdentity;
+          this.props.dispatch(setAppOrDelegatorId(appOrDelegatorIdentity));
         }
 
-        // Find the defined keys from the signing or AppOrDelegatedId.
+        // Find the defined keys from the signing or AppOrDelegatorId.
         const definedKeySource = definedKeyIdentity.identity;
         const cmmDataKeys: Record<string, {vdxfuri: string; nsid: string; label: string}> = {};
         if (

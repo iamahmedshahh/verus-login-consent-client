@@ -51,8 +51,8 @@ const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult})
   const currentDetailIndex = useSelector(
     (state: RootState) => state.navigation.currentDetailIndex || 0
   );
-  const appOrDelegatedIdentity = useSelector(
-    (state: RootState) => state.genericRequest.appOrDelegatedId.identity
+  const appOrDelegatorIdentity = useSelector(
+    (state: RootState) => state.genericRequest.appOrDelegatorId.identity
   );
   const signedBy = useSelector((state: RootState) => state.signatureInfo.signedBy);
   const rawV1Credentials = useSelector((state: RootState) => state.credentials?.credentials);
@@ -87,7 +87,7 @@ const CredentialsReview: React.FC<CredentialsReviewProps> = ({setRequestResult})
         signedBy!,
         v2Credentials,
         currentDetailIndex,
-        appOrDelegatedIdentity
+        appOrDelegatorIdentity
       )
     : extractCredentialsReviewDataV1(deeplinkData, signedBy!, v1Credentials);
 

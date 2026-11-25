@@ -85,7 +85,7 @@ export async function checkGenericRequest(
     }
 
     if (request.hasAppOrDelegatorID()) {
-      // Check the signing identity is in the wallet, so that the appOrDelegatedId is allowed
+      // Check the signing identity is in the wallet, so that the appOrDelegatorId is allowed
       const signingId = request.signature.identityID.toIAddress();
       const identities = getState().identity.identities as Identity[];
       const found = identities.find(id => {

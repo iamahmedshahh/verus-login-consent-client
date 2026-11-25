@@ -71,7 +71,7 @@ export const extractConsentDataV2 = (
   request: GenericRequest,
   signedBy: Identity,
   currentDetailIndex: number,
-  appOrDelegatedId?: Identity | null,
+  appOrDelegatorId?: Identity | null,
   preppedAuthDetail?: PreppedAuthDetail | null,
   identities: Identity[] = []
 ): ConsentData => {
@@ -111,8 +111,8 @@ export const extractConsentDataV2 = (
   const responseURIs = request.responseURIs ?? [];
   const responseURIsLabels = responseURIs.map((uri: ResponseURI) => uri.getUriString());
 
-  if (request.hasAppOrDelegatorID() && appOrDelegatedId) {
-    title += ` on behalf of ${convertFqnToDisplayFormat(appOrDelegatedId.fullyqualifiedname)}`;
+  if (request.hasAppOrDelegatorID() && appOrDelegatorId) {
+    title += ` on behalf of ${convertFqnToDisplayFormat(appOrDelegatorId.fullyqualifiedname)}`;
   }
 
   return {
